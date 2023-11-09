@@ -1,0 +1,28 @@
+<mxfile host="Electron" modified="2023-11-07T05:05:55.333Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.0.3 Chrome/114.0.5735.289 Electron/25.8.4 Safari/537.36" version="22.0.3" etag="Ys-z82Yz6_UT11ch0zAv" type="device">
+  <diagram id="pd_dnBbfjpIxTsxlzJHU" name="Page-1">
+    <mxGraphModel dx="954" dy="589" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" background="none" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="CD6tQdCOzh2o6pswwNw_-3" value="" style="group" vertex="1" connectable="0" parent="1">
+          <mxGeometry x="430" y="40" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="CD6tQdCOzh2o6pswwNw_-1" value="PREDEFINED WORKFLOW" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#008a00;fontColor=#ffffff;strokeColor=#005700;" vertex="1" parent="CD6tQdCOzh2o6pswwNw_-3">
+          <mxGeometry width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="CD6tQdCOzh2o6pswwNw_-2" value="YAML CONFIGURATION" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=default;gradientColor=none;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="CD6tQdCOzh2o6pswwNw_-3">
+          <mxGeometry y="60" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="CD6tQdCOzh2o6pswwNw_-5" value="" style="triangle;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" vertex="1" parent="1">
+          <mxGeometry x="370" y="50" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="CD6tQdCOzh2o6pswwNw_-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="CD6tQdCOzh2o6pswwNw_-7" target="CD6tQdCOzh2o6pswwNw_-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="CD6tQdCOzh2o6pswwNw_-7" value="NETWORK REQUEST (WITH WORKFLOW ID)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;strokeColor=#3700CC;fillColor=#6a00ff;sketch=1;curveFitting=1;jiggle=2;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="140" y="50" width="180" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
