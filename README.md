@@ -1,3 +1,5 @@
+# FLHO 🚀
+
 ## WHY USE FLHO
 
 FLHO is a light-weight state machine built with GO to take advantage of the concurrency features presented by GO-routines. FLHO can help with the following:
