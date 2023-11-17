@@ -9,7 +9,26 @@ import (
 )
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "create a new workflow")
+	var input struct{
+		Name            string    `json:"name"`
+		States          []string  `json:"states"`
+		StartState      string    `json:"startState"`
+		EndState        string    `json:"endState"`
+		IsTimed         bool      `json:"isTimed"`
+		Timeout         time.Time `json:"timeout"`
+		CallbackWebhook string    `json:"webhook"`
+		Alert           bool      `json:"alert"`
+		AlertEmail      string    `json:"alertEmail"`
+		AlertWebhook    string    `json:"alertWebhook"`
+	}
+
+	err := app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	fmt.Fprintf(w, "%+v\n", input)
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
