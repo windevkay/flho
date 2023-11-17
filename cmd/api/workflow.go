@@ -9,7 +9,7 @@ import (
 )
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct{
+	var input struct {
 		Name            string    `json:"name"`
 		States          []string  `json:"states"`
 		StartState      string    `json:"startState"`
