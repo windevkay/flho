@@ -7,7 +7,7 @@ FLHO is a light-weight state machine built with GO to take advantage of the conc
 - **Reduce the amount of message/topics you need to have in a typical SOA**. Services can inquire about less-crucial state changes on demand, without having to be setup as a 'consumer' for it.
 - **Business-critical operations can have workflows that are 'time-aware'**. Certain types of failures (e.g Network) could prematurely terminate an operation. Having an external service such as FLHO is akin to having a 'friendly neighbor' that takes an action if they dont see/hear from you after a while. This vastly eliminates the need for you to implement solutions around retry logic, such as outsourcing to a scheduled job or queue.
 
-FLHO ships with a built in alert system that can notify of timed out workflows. Alerts can be configured to be via email or webhook.
+FLHO ships with a built in alert system that can notify of timed out workflows via webhook.
 
 ## HOW FLHO WORKS
 

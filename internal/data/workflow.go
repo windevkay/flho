@@ -11,11 +11,9 @@ type Workflow struct {
 	States          []string  `json:"states"`
 	StartState      string    `json:"startState"`
 	EndState        string    `json:"endState"`
+	CallbackWebhook string    `json:"webhook,omitempty"`
 	IsTimed         bool      `json:"isTimed"`
 	Timeout         time.Time `json:"timeout,omitempty"`
-	CallbackWebhook string    `json:"webhook,omitempty"`
-	Alert           bool      `json:"alert"`
-	AlertEmail      string    `json:"alertEmail,omitempty"`
 	AlertWebhook    string    `json:"alertWebhook,omitempty"`
 	Active          bool      `json:"active"`
 	Version         int32     `json:"version"`
