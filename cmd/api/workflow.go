@@ -10,16 +10,16 @@ import (
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name            string    `json:"name"`
-		States          []string  `json:"states"`
-		StartState      string    `json:"startState"`
-		EndState        string    `json:"endState"`
-		IsTimed         bool      `json:"isTimed"`
-		Timeout         time.Time `json:"timeout"`
-		CallbackWebhook string    `json:"webhook"`
-		Alert           bool      `json:"alert"`
-		AlertEmail      string    `json:"alertEmail"`
-		AlertWebhook    string    `json:"alertWebhook"`
+		Name            string    `json:"name"`         // M
+		States          []string  `json:"states"`       // M - there should be atleast 2 states (start, end?)
+		StartState      string    `json:"startState"`   // M - should match an item in the states slice
+		EndState        string    `json:"endState"`     // M - should match an item in the states slice
+		IsTimed         bool      `json:"isTimed"`      // M
+		Timeout         time.Time `json:"timeout"`      // O - must be provided if isTimed is set to true
+		CallbackWebhook string    `json:"webhook"`      // O
+		Alert           bool      `json:"alert"`        // M
+		AlertEmail      string    `json:"alertEmail"`   // O - either this or the webhook must be provided if alert is set to true
+		AlertWebhook    string    `json:"alertWebhook"` // O
 	}
 
 	err := app.readJSON(w, r, &input)
