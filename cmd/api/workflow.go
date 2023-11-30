@@ -11,14 +11,11 @@ import (
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name            string       `json:"name"`         // M
-		States          []string     `json:"states"`       // M - there should be atleast 2 states (start, end?)
-		StartState      string       `json:"startState"`   // M - should match an item in the states slice
-		EndState        string       `json:"endState"`     // M - should match an item in the states slice
-		CallbackWebhook string       `json:"webhook"`      // O
-		IsTimed         bool         `json:"isTimed"`      // M
-		Timeout         data.Timeout `json:"timeout"`      // O - must be provided if isTimed is set to true
-		AlertWebhook    string       `json:"alertWebhook"` // O - must be provided if isTimed is set to true
+		Name            string   `json:"name"`       // M
+		States          []string `json:"states"`     // M - there should be atleast 2 states (start, end?)
+		StartState      string   `json:"startState"` // M - should match an item in the states slice
+		EndState        string   `json:"endState"`   // M - should match an item in the states slice
+		CallbackWebhook string   `json:"webhook"`    // O
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -35,9 +32,6 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		StartState:      input.StartState,
 		EndState:        input.EndState,
 		CallbackWebhook: input.CallbackWebhook,
-		IsTimed:         input.IsTimed,
-		Timeout:         input.Timeout,
-		AlertWebhook:    input.AlertWebhook,
 	}
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
@@ -60,7 +54,6 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 		CreatedAt: time.Now(),
 		Name:      "PRIMARYJOB001",
 		Version:   1,
-		Timeout:   10,
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"workflow": workflow}, nil)
