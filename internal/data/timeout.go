@@ -12,7 +12,7 @@ type Timeout int32
 var ErrInvalidTimeoutFormat = errors.New("invalid timeout format")
 
 func (t Timeout) MarshalJSON() ([]byte, error) {
-	jsonValue := fmt.Sprintf("%d mins", t)
+	jsonValue := fmt.Sprintf("%d seconds", t)
 	quotedJSONValue := strconv.Quote(jsonValue)
 
 	return []byte(quotedJSONValue), nil
@@ -26,7 +26,7 @@ func (t *Timeout) UnmarshalJSON(jsonValue []byte) error {
 
 	parts := strings.Split(unquotedJSONValue, " ")
 
-	if len(parts) != 2 || parts[1] != "mins" {
+	if len(parts) != 2 || parts[1] != "seconds" {
 		return ErrInvalidTimeoutFormat
 	}
 

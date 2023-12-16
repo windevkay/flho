@@ -12,8 +12,11 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type envelope map[string]any
+// envelope is a helper type for creating JSON envelopes.
+type envelope map[string]interface{}
 
+// readIDParam extracts and parses the "id" parameter from the request URL.
+// It returns the parsed ID as an int64 value, or an error if the ID is invalid.
 func (app *application) readIDParam(r *http.Request) (int64, error) {
 	params := httprouter.ParamsFromContext(r.Context())
 
@@ -25,6 +28,8 @@ func (app *application) readIDParam(r *http.Request) (int64, error) {
 	return id, nil
 }
 
+// writeJSON writes the given data as a JSON response with the specified status code and headers.
+// It returns an error if the data cannot be serialized to JSON or if there is an error writing the response.
 func (app *application) writeJSON(w http.ResponseWriter, status int, data envelope, headers http.Header) error {
 	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
@@ -44,8 +49,12 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data envelo
 	return nil
 }
 
-func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any) error {
-	maxBytes := 1_048_576 // 1MB max request bodies
+// readJSON reads and decodes the JSON request body into the provided destination object.
+// It enforces a maximum request body size of 1MB and disallows unknown fields in the JSON.
+// It returns an error if the JSON is malformed, the body is empty, the JSON contains unknown fields,
+// or if the body exceeds the maximum size.
+func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
+	maxBytes := 1_048_576 // 1MB max request body
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
 	dec := json.NewDecoder(r.Body)
