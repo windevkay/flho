@@ -17,8 +17,8 @@ const (
 
 type Workflow struct {
 	ID                          int64                `json:"-"`
-	CreatedAt                   time.Time            `json:"createdAt"`
-	UpdatedAt                   time.Time            `json:"updatedAt"`
+	CreatedAt                   time.Time            `json:"created_at"`
+	UpdatedAt                   time.Time            `json:"updated_at"`
 	UniqueID                    string               `json:"uniqueId"`
 	Name                        string               `json:"name"`
 	States                      []string             `json:"states"`

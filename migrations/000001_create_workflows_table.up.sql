@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS workflows (
+    id bigserial PRIMARY KEY,
+	created_at timestamp(0) with time zone NOT NULL DEFAULT NOW(),
+	updated_at timestamp(0) with time zone,
+	uniqueId text NOT NULL,
+	name text NOT NULL,
+	states text[] NOT NULL,
+	startState text NOT NULL,  
+	endState text NOT NULL,
+	callbackWebhook text NOT NULL,        
+	retry boolean NOT NULL,
+	retryAfter integer,          
+	retryURL text,          
+	circuitBreaker boolean NOT NULL,         
+	circuitBreakerStatus text,   
+	circuitBreakerFailureCount integer,
+	circuitBreakerOpenTimeout integer,
+	circuitBreakerHalfOpenCount integer,
+	active boolean NOT NULL,
+	version integer NOT NULL DEFAULT 1 
+);
