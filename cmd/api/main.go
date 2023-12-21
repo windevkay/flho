@@ -10,6 +10,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/windevkay/flho/internal/data"
+
 	_ "github.com/lib/pq"
 )
 
@@ -29,6 +31,7 @@ type config struct {
 type application struct {
 	config config
 	logger *slog.Logger
+	models data.Models
 }
 
 func main() {
@@ -59,6 +62,7 @@ func main() {
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.GetModels(db),
 	}
 
 	srv := &http.Server{

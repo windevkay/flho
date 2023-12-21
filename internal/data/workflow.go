@@ -1,9 +1,11 @@
 package data
 
 import (
+	"database/sql"
 	"slices"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/windevkay/flho/internal/validator"
 )
 
@@ -63,4 +65,30 @@ func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 		v.Check(w.CircuitBreakerHalfOpenCount != 0, "circuitBreakerHalfOpenCount", "must be provided")
 		v.Check(w.CircuitBreakerHalfOpenCount > 0, "circuitBreakerHalfOpenCount", "must be a non-negative value")
 	}
+}
+
+type WorkflowModel struct {
+	DB *sql.DB
+}
+
+func (w WorkflowModel) Insert(workflow *Workflow) error {
+	query := `INSERT INTO workflows (uniqueid, name, states, startstate, endstate, callbackwebhook, retry, retryafter, retryurl, circuitbreaker, circuitbreakerstatus, circuitbreakerfailurecount, circuitbreakeropentimeout, circuitbreakerhalfopencount, active)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+				RETURNING id, created_at, uniqueid, version`
+
+	args := []any{workflow.UniqueID, workflow.Name, pq.Array(workflow.States), workflow.StartState, workflow.EndState, workflow.CallbackWebhook, workflow.Retry, workflow.RetryAfter, workflow.RetryURL, workflow.CircuitBreaker, workflow.CircuitBreakerStatus, workflow.CircuitBreakerFailureCount, workflow.CircuitBreakerOpenTimeout, workflow.CircuitBreakerHalfOpenCount, workflow.Active}
+
+	return w.DB.QueryRow(query, args...).Scan(&workflow.ID, &workflow.CreatedAt, &workflow.UniqueID, &workflow.Version)
+}
+
+func (w WorkflowModel) Get(id int64) (*Workflow, error) {
+	return nil, nil
+}
+
+func (w WorkflowModel) Update(workflow *Workflow) error {
+	return nil
+}
+
+func (w WorkflowModel) Delete(id int64) error {
+	return nil
 }
