@@ -11,11 +11,18 @@ import (
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name            string   `json:"name"`       // M
-		States          []string `json:"states"`     // M - there should be atleast 2 states (start, end?)
-		StartState      string   `json:"startState"` // M - should match an item in the states slice
-		EndState        string   `json:"endState"`   // M - should match an item in the states slice
-		CallbackWebhook string   `json:"webhook"`    // O
+		Name                        string       `json:"name"`
+		States                      []string     `json:"states"`
+		StartState                  string       `json:"startState"`
+		EndState                    string       `json:"endState"`
+		CallbackWebhook             string       `json:"webhook,omitempty"`
+		Retry                       bool         `json:"retry"`
+		RetryAfter                  data.Timeout `json:"retryAfter,omitempty"`
+		RetryURL                    string       `json:"retryUrl,omitempty"`
+		CircuitBreaker              bool         `json:"circuitBreaker"`
+		CircuitBreakerFailureCount  int32        `json:"circuitBreakerFailureCount,omitempty"`
+		CircuitBreakerOpenTimeout   data.Timeout `json:"circuitBreakerOpenTimeout,omitempty"`
+		CircuitBreakerHalfOpenCount int32        `json:"circuitBreakerHalfOpenCount,omitempty"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -27,11 +34,21 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	v := validator.New()
 
 	workflow := &data.Workflow{
-		Name:            input.Name,
-		States:          input.States,
-		StartState:      input.StartState,
-		EndState:        input.EndState,
-		CallbackWebhook: input.CallbackWebhook,
+		UniqueID:                    app.generateWorkflowUniqueId(),
+		Name:                        input.Name,
+		States:                      input.States,
+		StartState:                  input.StartState,
+		EndState:                    input.EndState,
+		CallbackWebhook:             input.CallbackWebhook,
+		Retry:                       input.Retry,
+		RetryAfter:                  input.RetryAfter,
+		RetryURL:                    input.RetryURL,
+		CircuitBreaker:              input.CircuitBreaker,
+		CircuitBreakerStatus:        "CLOSED",
+		CircuitBreakerFailureCount:  input.CircuitBreakerFailureCount,
+		CircuitBreakerOpenTimeout:   input.CircuitBreakerOpenTimeout,
+		CircuitBreakerHalfOpenCount: input.CircuitBreakerHalfOpenCount,
+		Active:                      true,
 	}
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
@@ -39,7 +56,20 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	fmt.Fprintf(w, "%+v\n", input)
+	err = app.models.Workflows.Insert(workflow)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	// handy resource location header for clients
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/workflows/%d", workflow.ID))
+
+	err = app.writeJSON(w, http.StatusCreated, envelope{"workflow": workflow}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {

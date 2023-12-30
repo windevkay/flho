@@ -1,3 +1,4 @@
+// Package main provides helper functions for the API.
 package main
 
 import (
@@ -5,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,8 +14,26 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+const (
+	// lowerChars string = "abcdefghijklmnopqrstuvwxyz"
+	upperChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits     string = "0123456789"
+)
+
 // envelope is a helper type for creating JSON envelopes.
 type envelope map[string]interface{}
+
+// generateWorkflowUniqueId generates a unique ID for a workflow.
+func (app *application) generateWorkflowUniqueId() string {
+	charset := digits + upperChars
+	generatedId := make([]byte, 15)
+
+	for index := range generatedId {
+		generatedId[index] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(generatedId)
+}
 
 // readIDParam extracts and parses the "id" parameter from the request URL.
 // It returns the parsed ID as an int64 value, or an error if the ID is invalid.
