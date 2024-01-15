@@ -2,6 +2,7 @@ package data
 
 import (
 	"database/sql"
+	"errors"
 	"slices"
 	"time"
 
@@ -82,7 +83,32 @@ func (w WorkflowModel) Insert(workflow *Workflow) error {
 }
 
 func (w WorkflowModel) Get(id int64) (*Workflow, error) {
-	return nil, nil
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
+
+	query := `SELECT id, created_at, uniqueid, name, states FROM workflows WHERE id = $1`
+
+	var workflow Workflow
+
+	err := w.DB.QueryRow(query, id).Scan(
+		&workflow.ID,
+		&workflow.CreatedAt,
+		&workflow.UniqueID,
+		&workflow.Name,
+		pq.Array(&workflow.States),
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &workflow, nil
 }
 
 func (w WorkflowModel) Update(workflow *Workflow) error {
