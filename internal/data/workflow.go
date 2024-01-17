@@ -87,7 +87,7 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	query := `SELECT id, created_at, uniqueid, name, states FROM workflows WHERE id = $1`
+	query := `SELECT id, created_at, uniqueid, name, states, startstate, endstate, retry, circuitbreaker, active, version FROM workflows WHERE id = $1`
 
 	var workflow Workflow
 
@@ -97,6 +97,12 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 		&workflow.UniqueID,
 		&workflow.Name,
 		pq.Array(&workflow.States),
+		&workflow.StartState,
+		&workflow.EndState,
+		&workflow.Retry,
+		&workflow.CircuitBreaker,
+		&workflow.Active,
+		&workflow.Version,
 	)
 
 	if err != nil {

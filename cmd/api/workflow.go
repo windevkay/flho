@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/windevkay/flho/internal/data"
 	"github.com/windevkay/flho/internal/validator"
@@ -79,11 +79,15 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	workflow := data.Workflow{
-		ID:        id,
-		CreatedAt: time.Now(),
-		Name:      "PRIMARYJOB001",
-		Version:   1,
+	workflow, err := app.models.Workflows.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
 	}
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"workflow": workflow}, nil)
