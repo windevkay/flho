@@ -118,7 +118,23 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 }
 
 func (w WorkflowModel) Update(workflow *Workflow) error {
-	return nil
+	query := `
+		UPDATE workflows
+		SET name = $1, states = $2, startstate = $3, endstate = $4, retry = $5, circuitbreaker = $6, version = version + 1
+		WHERE id = $7
+		RETURNING version`
+
+	args := []any{
+		workflow.Name,
+		workflow.States,
+		workflow.StartState,
+		workflow.EndState,
+		workflow.Retry,
+		workflow.CircuitBreaker,
+		workflow.ID,
+	}
+
+	return w.DB.QueryRow(query, args...).Scan(&workflow.Version)
 }
 
 func (w WorkflowModel) Delete(id int64) error {

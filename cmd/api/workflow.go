@@ -95,3 +95,62 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	workflow, err := app.models.Workflows.Get(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	var input struct {
+		Name           string   `json:"name"`
+		States         []string `json:"states"`
+		StartState     string   `json:"startState"`
+		EndState       string   `json:"endState"`
+		Retry          bool     `json:"retry"`
+		CircuitBreaker bool     `json:"circuitBreaker"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	workflow.Name = input.Name
+	workflow.States = input.States
+	workflow.StartState = input.StartState
+	workflow.EndState = input.EndState
+	workflow.Retry = input.Retry
+	workflow.CircuitBreaker = input.CircuitBreaker
+
+	v := validator.New()
+
+	if data.ValidateWorkflow(v, workflow); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.models.Workflows.Update(workflow)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"workflow": workflow}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
