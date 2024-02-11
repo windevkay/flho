@@ -138,5 +138,25 @@ func (w WorkflowModel) Update(workflow *Workflow) error {
 }
 
 func (w WorkflowModel) Delete(id int64) error {
+	if id < 1 {
+		return ErrRecordNotFound
+	}
+
+	query := `DELETE FROM workflows WHERE id = $1`
+
+	result, err := w.DB.Exec(query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsDeleted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsDeleted == 0 {
+		return ErrRecordNotFound
+	}
+
 	return nil
 }

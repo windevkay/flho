@@ -16,6 +16,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPost, "/v1/workflows", app.createWorkflowHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/workflows/:id", app.showWorkflowHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/workflows/:id", app.updateWorkflowHandler)
+	router.HandlerFunc(http.MethodDelete, "/v1/workflows/:id", app.deleteWorkflowHandler)
 
 	return app.recoverPanic(router)
 }
