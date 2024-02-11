@@ -31,7 +31,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	//v := validator.New()
+	v := validator.New()
 
 	workflow := &data.Workflow{
 		UniqueID:                    app.generateWorkflowUniqueId(),
@@ -51,27 +51,25 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		Active:                      true,
 	}
 
-	fmt.Fprint(w, workflow)
+	if data.ValidateWorkflow(v, workflow); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
 
-	// if data.ValidateWorkflow(v, workflow); !v.Valid() {
-	// 	app.failedValidationResponse(w, r, v.Errors)
-	// 	return
-	// }
+	err = app.models.Workflows.Insert(workflow)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
 
-	// err = app.models.Workflows.Insert(workflow)
-	// if err != nil {
-	// 	app.serverErrorResponse(w, r, err)
-	// 	return
-	// }
+	// handy resource location header for clients
+	headers := make(http.Header)
+	headers.Set("Location", fmt.Sprintf("/v1/workflows/%d", workflow.ID))
 
-	// // handy resource location header for clients
-	// headers := make(http.Header)
-	// headers.Set("Location", fmt.Sprintf("/v1/workflows/%d", workflow.ID))
-
-	// err = app.writeJSON(w, http.StatusCreated, envelope{"workflow": workflow}, headers)
-	// if err != nil {
-	// 	app.serverErrorResponse(w, r, err)
-	// }
+	err = app.writeJSON(w, http.StatusCreated, envelope{"workflow": workflow}, headers)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
