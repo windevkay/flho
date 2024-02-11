@@ -173,7 +173,7 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"message": "workflow successfully deleted"}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "workflow has successfully been deleted"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
