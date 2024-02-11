@@ -15,14 +15,14 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		States                      []string     `json:"states"`
 		StartState                  string       `json:"startState"`
 		EndState                    string       `json:"endState"`
-		CallbackWebhook             string       `json:"webhook,omitempty"`
+		CallbackWebhook             string       `json:"webhook"`
 		Retry                       bool         `json:"retry"`
-		RetryAfter                  data.Timeout `json:"retryAfter,omitempty"`
-		RetryURL                    string       `json:"retryUrl,omitempty"`
+		RetryAfter                  data.Timeout `json:"retryAfter"`
+		RetryURL                    string       `json:"retryUrl"`
 		CircuitBreaker              bool         `json:"circuitBreaker"`
-		CircuitBreakerFailureCount  int32        `json:"circuitBreakerFailureCount,omitempty"`
-		CircuitBreakerOpenTimeout   data.Timeout `json:"circuitBreakerOpenTimeout,omitempty"`
-		CircuitBreakerHalfOpenCount int32        `json:"circuitBreakerHalfOpenCount,omitempty"`
+		CircuitBreakerFailureCount  int32        `json:"circuitBreakerFailureCount"`
+		CircuitBreakerOpenTimeout   data.Timeout `json:"circuitBreakerOpenTimeout"`
+		CircuitBreakerHalfOpenCount int32        `json:"circuitBreakerHalfOpenCount"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -31,7 +31,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	v := validator.New()
+	//v := validator.New()
 
 	workflow := &data.Workflow{
 		UniqueID:                    app.generateWorkflowUniqueId(),
@@ -51,25 +51,27 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		Active:                      true,
 	}
 
-	if data.ValidateWorkflow(v, workflow); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
-		return
-	}
+	fmt.Fprint(w, workflow)
 
-	err = app.models.Workflows.Insert(workflow)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-		return
-	}
+	// if data.ValidateWorkflow(v, workflow); !v.Valid() {
+	// 	app.failedValidationResponse(w, r, v.Errors)
+	// 	return
+	// }
 
-	// handy resource location header for clients
-	headers := make(http.Header)
-	headers.Set("Location", fmt.Sprintf("/v1/workflows/%d", workflow.ID))
+	// err = app.models.Workflows.Insert(workflow)
+	// if err != nil {
+	// 	app.serverErrorResponse(w, r, err)
+	// 	return
+	// }
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"workflow": workflow}, headers)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	// // handy resource location header for clients
+	// headers := make(http.Header)
+	// headers.Set("Location", fmt.Sprintf("/v1/workflows/%d", workflow.ID))
+
+	// err = app.writeJSON(w, http.StatusCreated, envelope{"workflow": workflow}, headers)
+	// if err != nil {
+	// 	app.serverErrorResponse(w, r, err)
+	// }
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
