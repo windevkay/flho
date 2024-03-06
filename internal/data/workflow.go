@@ -121,7 +121,7 @@ func (w WorkflowModel) Update(workflow *Workflow) error {
 	query := `
 		UPDATE workflows
 		SET name = $1, states = $2, startstate = $3, endstate = $4, retry = $5, circuitbreaker = $6, version = version + 1
-		WHERE id = $7
+		WHERE id = $7 AND version = $8
 		RETURNING version`
 
 	args := []any{
@@ -132,9 +132,20 @@ func (w WorkflowModel) Update(workflow *Workflow) error {
 		workflow.Retry,
 		workflow.CircuitBreaker,
 		workflow.ID,
+		workflow.Version,
 	}
 
-	return w.DB.QueryRow(query, args...).Scan(&workflow.Version)
+	err := w.DB.QueryRow(query, args...).Scan(&workflow.Version)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (w WorkflowModel) Delete(id int64) error {
