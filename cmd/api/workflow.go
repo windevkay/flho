@@ -115,12 +115,12 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	var input struct {
-		Name           string   `json:"name"`
+		Name           *string  `json:"name"`
 		States         []string `json:"states"`
-		StartState     string   `json:"startState"`
-		EndState       string   `json:"endState"`
-		Retry          bool     `json:"retry"`
-		CircuitBreaker bool     `json:"circuitBreaker"`
+		StartState     *string  `json:"startState"`
+		EndState       *string  `json:"endState"`
+		Retry          *bool    `json:"retry"`
+		CircuitBreaker *bool    `json:"circuitBreaker"`
 	}
 
 	err = app.readJSON(w, r, &input)
@@ -129,12 +129,25 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	workflow.Name = input.Name
-	workflow.States = input.States
-	workflow.StartState = input.StartState
-	workflow.EndState = input.EndState
-	workflow.Retry = input.Retry
-	workflow.CircuitBreaker = input.CircuitBreaker
+	// achieve partial updates using non nil values
+	if input.Name != nil {
+		workflow.Name = *input.Name
+	}
+	if input.States != nil {
+		workflow.States = input.States
+	}
+	if input.StartState != nil {
+		workflow.StartState = *input.StartState
+	}
+	if input.EndState != nil {
+		workflow.EndState = *input.EndState
+	}
+	if input.Retry != nil {
+		workflow.Retry = *input.Retry
+	}
+	if input.CircuitBreaker != nil {
+		workflow.CircuitBreaker = *input.CircuitBreaker
+	}
 
 	v := validator.New()
 
