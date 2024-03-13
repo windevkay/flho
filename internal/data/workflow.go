@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"slices"
@@ -79,7 +80,11 @@ func (w WorkflowModel) Insert(workflow *Workflow) error {
 
 	args := []any{workflow.UniqueID, workflow.Name, pq.Array(workflow.States), workflow.StartState, workflow.EndState, workflow.CallbackWebhook, workflow.Retry, workflow.RetryAfter, workflow.RetryURL, workflow.CircuitBreaker, workflow.CircuitBreakerStatus, workflow.CircuitBreakerFailureCount, workflow.CircuitBreakerOpenTimeout, workflow.CircuitBreakerHalfOpenCount, workflow.Active}
 
-	return w.DB.QueryRow(query, args...).Scan(&workflow.ID, &workflow.CreatedAt, &workflow.UniqueID, &workflow.Version)
+	// db operations have 3 seconds max to resolve
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return w.DB.QueryRowContext(ctx, query, args...).Scan(&workflow.ID, &workflow.CreatedAt, &workflow.UniqueID, &workflow.Version)
 }
 
 func (w WorkflowModel) Get(id int64) (*Workflow, error) {
@@ -91,7 +96,11 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 
 	var workflow Workflow
 
-	err := w.DB.QueryRow(query, id).Scan(
+	// db operations have 3 seconds max to resolve
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := w.DB.QueryRowContext(ctx, query, id).Scan(
 		&workflow.ID,
 		&workflow.CreatedAt,
 		&workflow.UniqueID,
@@ -135,7 +144,11 @@ func (w WorkflowModel) Update(workflow *Workflow) error {
 		workflow.Version,
 	}
 
-	err := w.DB.QueryRow(query, args...).Scan(&workflow.Version)
+	// db operations have 3 seconds max to resolve
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := w.DB.QueryRowContext(ctx, query, args...).Scan(&workflow.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -155,7 +168,11 @@ func (w WorkflowModel) Delete(id int64) error {
 
 	query := `DELETE FROM workflows WHERE id = $1`
 
-	result, err := w.DB.Exec(query, id)
+	// db operations have 3 seconds max to resolve
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := w.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
