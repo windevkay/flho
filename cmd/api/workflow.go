@@ -11,18 +11,12 @@ import (
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name                        string       `json:"name"`
-		States                      []string     `json:"states"`
-		StartState                  string       `json:"startState"`
-		EndState                    string       `json:"endState"`
-		CallbackWebhook             string       `json:"webhook"`
-		Retry                       bool         `json:"retry"`
-		RetryAfter                  data.Timeout `json:"retryAfter"`
-		RetryURL                    string       `json:"retryUrl"`
-		CircuitBreaker              bool         `json:"circuitBreaker"`
-		CircuitBreakerFailureCount  int32        `json:"circuitBreakerFailureCount"`
-		CircuitBreakerOpenTimeout   data.Timeout `json:"circuitBreakerOpenTimeout"`
-		CircuitBreakerHalfOpenCount int32        `json:"circuitBreakerHalfOpenCount"`
+		Name         string       `json:"name"`
+		States       []string     `json:"states"`
+		StartState   string       `json:"startState"`
+		EndState     string       `json:"endState"`
+		RetryWebhook string       `json:"retrywebhook"`
+		RetryAfter   data.Timeout `json:"retryAfter"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -34,21 +28,14 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	v := validator.New()
 
 	workflow := &data.Workflow{
-		UniqueID:                    app.generateWorkflowUniqueId(),
-		Name:                        input.Name,
-		States:                      input.States,
-		StartState:                  input.StartState,
-		EndState:                    input.EndState,
-		CallbackWebhook:             input.CallbackWebhook,
-		Retry:                       input.Retry,
-		RetryAfter:                  input.RetryAfter,
-		RetryURL:                    input.RetryURL,
-		CircuitBreaker:              input.CircuitBreaker,
-		CircuitBreakerStatus:        "CLOSED",
-		CircuitBreakerFailureCount:  input.CircuitBreakerFailureCount,
-		CircuitBreakerOpenTimeout:   input.CircuitBreakerOpenTimeout,
-		CircuitBreakerHalfOpenCount: input.CircuitBreakerHalfOpenCount,
-		Active:                      true,
+		UniqueID:     app.generateWorkflowUniqueId(),
+		Name:         input.Name,
+		States:       input.States,
+		StartState:   input.StartState,
+		EndState:     input.EndState,
+		RetryWebhook: input.RetryWebhook,
+		RetryAfter:   input.RetryAfter,
+		Active:       true,
 	}
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
@@ -115,12 +102,12 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	var input struct {
-		Name           *string  `json:"name"`
-		States         []string `json:"states"`
-		StartState     *string  `json:"startState"`
-		EndState       *string  `json:"endState"`
-		Retry          *bool    `json:"retry"`
-		CircuitBreaker *bool    `json:"circuitBreaker"`
+		Name         *string       `json:"name"`
+		States       []string      `json:"states"`
+		StartState   *string       `json:"startState"`
+		EndState     *string       `json:"endState"`
+		RetryWebhook *string       `json:"retrywebhook"`
+		RetryAfter   *data.Timeout `json:"retryafter"`
 	}
 
 	err = app.readJSON(w, r, &input)
@@ -142,11 +129,11 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	if input.EndState != nil {
 		workflow.EndState = *input.EndState
 	}
-	if input.Retry != nil {
-		workflow.Retry = *input.Retry
+	if input.RetryWebhook != nil {
+		workflow.RetryWebhook = *input.RetryWebhook
 	}
-	if input.CircuitBreaker != nil {
-		workflow.CircuitBreaker = *input.CircuitBreaker
+	if input.RetryAfter != nil {
+		workflow.RetryAfter = *input.RetryAfter
 	}
 
 	v := validator.New()

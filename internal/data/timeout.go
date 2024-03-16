@@ -7,10 +7,11 @@ import (
 	"strings"
 )
 
-type Timeout int32
+type Timeout int
 
 var ErrInvalidTimeoutFormat = errors.New("invalid timeout format")
 
+// transform custom struct field when writing to JSON
 func (t Timeout) MarshalJSON() ([]byte, error) {
 	jsonValue := fmt.Sprintf("%d seconds", t)
 	quotedJSONValue := strconv.Quote(jsonValue)
@@ -18,6 +19,7 @@ func (t Timeout) MarshalJSON() ([]byte, error) {
 	return []byte(quotedJSONValue), nil
 }
 
+// transform incoming JSON field to match struct field type
 func (t *Timeout) UnmarshalJSON(jsonValue []byte) error {
 	unquotedJSONValue, err := strconv.Unquote(string(jsonValue))
 	if err != nil {
