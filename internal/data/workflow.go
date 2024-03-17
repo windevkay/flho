@@ -12,18 +12,18 @@ import (
 )
 
 type Workflow struct {
-	ID           int64     `json:"-"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at,omitempty"`
-	UniqueID     string    `json:"uniqueId"`
-	Name         string    `json:"name"`
-	States       []string  `json:"states"`
-	StartState   string    `json:"startState"`
-	EndState     string    `json:"endState"`
-	RetryWebhook string    `json:"retrywebhook,omitempty"`
-	RetryAfter   Timeout   `json:"retryAfter,omitempty"`
-	Active       bool      `json:"active"`
-	Version      int32     `json:"version"`
+	ID           int64      `json:"-"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+	UniqueID     string     `json:"uniqueId"`
+	Name         string     `json:"name"`
+	States       []string   `json:"states"`
+	StartState   string     `json:"startState"`
+	EndState     string     `json:"endState"`
+	RetryWebhook string     `json:"retryWebhook,omitempty"`
+	RetryAfter   Timeout    `json:"retryAfter,omitempty"`
+	Active       bool       `json:"active"`
+	Version      int32      `json:"version"`
 }
 
 func ValidateWorkflow(v *validator.Validator, w *Workflow) {
@@ -46,7 +46,7 @@ type WorkflowModel struct {
 func (w WorkflowModel) Insert(workflow *Workflow) error {
 	query := `INSERT INTO workflows (uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active)
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-				RETURNING id, created_at, uniqueid, version`
+				RETURNING created_at, updated_at, version`
 
 	args := []any{workflow.UniqueID, workflow.Name, pq.Array(workflow.States), workflow.StartState, workflow.EndState, workflow.RetryWebhook, workflow.RetryAfter, workflow.Active}
 
@@ -54,7 +54,7 @@ func (w WorkflowModel) Insert(workflow *Workflow) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return w.DB.QueryRowContext(ctx, query, args...).Scan(&workflow.ID, &workflow.CreatedAt, &workflow.UniqueID, &workflow.Version)
+	return w.DB.QueryRowContext(ctx, query, args...).Scan(&workflow.CreatedAt, &workflow.UpdatedAt, &workflow.Version)
 }
 
 func (w WorkflowModel) Get(id int64) (*Workflow, error) {

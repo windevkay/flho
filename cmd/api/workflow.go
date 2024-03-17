@@ -15,7 +15,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		States       []string     `json:"states"`
 		StartState   string       `json:"startState"`
 		EndState     string       `json:"endState"`
-		RetryWebhook string       `json:"retrywebhook"`
+		RetryWebhook string       `json:"retryWebhook"`
 		RetryAfter   data.Timeout `json:"retryAfter"`
 	}
 
@@ -106,8 +106,8 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 		States       []string      `json:"states"`
 		StartState   *string       `json:"startState"`
 		EndState     *string       `json:"endState"`
-		RetryWebhook *string       `json:"retrywebhook"`
-		RetryAfter   *data.Timeout `json:"retryafter"`
+		RetryWebhook *string       `json:"retryWebhook"`
+		RetryAfter   *data.Timeout `json:"retryAfter"`
 	}
 
 	err = app.readJSON(w, r, &input)
