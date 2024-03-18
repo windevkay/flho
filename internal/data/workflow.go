@@ -62,7 +62,7 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	query := `SELECT id, created_at, uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active, version FROM workflows WHERE id = $1`
+	query := `SELECT id, created_at, updated_at, uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active, version FROM workflows WHERE id = $1`
 
 	var workflow Workflow
 
@@ -73,6 +73,7 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 	err := w.DB.QueryRowContext(ctx, query, id).Scan(
 		&workflow.ID,
 		&workflow.CreatedAt,
+		&workflow.UpdatedAt,
 		&workflow.UniqueID,
 		&workflow.Name,
 		pq.Array(&workflow.States),
@@ -99,13 +100,13 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 func (w WorkflowModel) Update(workflow *Workflow) error {
 	query := `
 		UPDATE workflows
-		SET name = $1, states = $2, startstate = $3, endstate = $4, retrywebhook = $5, retryafter = $6 version = version + 1
+		SET name = $1, states = $2, startstate = $3, endstate = $4, retrywebhook = $5, retryafter = $6, version = version + 1
 		WHERE id = $7 AND version = $8
 		RETURNING version`
 
 	args := []any{
 		workflow.Name,
-		workflow.States,
+		pq.Array(workflow.States),
 		workflow.StartState,
 		workflow.EndState,
 		workflow.RetryWebhook,
