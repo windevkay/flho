@@ -39,6 +39,13 @@ func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 	v.Check(slices.Contains(w.States, w.EndState), "endState", "must be part of the states list")
 }
 
+type WorkflowModelInterface interface {
+	Insert(workflow *Workflow) error
+	Get(id int64) (*Workflow, error)
+	Update(workflow *Workflow) error
+	Delete(id int64) error
+}
+
 type WorkflowModel struct {
 	DB *sql.DB
 }

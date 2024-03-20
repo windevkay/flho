@@ -11,11 +11,17 @@ var (
 )
 
 type Models struct {
-	Workflows WorkflowModel
+	Workflows WorkflowModelInterface
 }
 
 func GetModels(db *sql.DB) Models {
 	return Models{
 		Workflows: WorkflowModel{DB: db},
+	}
+}
+
+func GetMockModels() Models {
+	return Models{
+		Workflows: MockWorkflowModel{},
 	}
 }
