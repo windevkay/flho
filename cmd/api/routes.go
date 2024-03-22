@@ -7,9 +7,6 @@ import (
 func (app *application) routes() http.Handler {
 	mux := http.NewServeMux()
 
-	//mux.NotFound = http.HandlerFunc(app.notFoundResponse)
-	//mux.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
-
 	mux.HandleFunc("GET /v1/healthcheck", app.healthcheckHandler)
 	mux.HandleFunc("POST /v1/workflows", app.createWorkflowHandler)
 	mux.HandleFunc("GET /v1/workflows/{id}", app.showWorkflowHandler)

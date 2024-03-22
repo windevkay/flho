@@ -11,10 +11,7 @@ import (
 
 func TestHealthcheckHandler(t *testing.T) {
 	// Arrange
-	req, err := http.NewRequest("GET", "/healthcheck", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	req, _ := http.NewRequest(http.MethodGet, "/healthcheck", nil)
 
 	rr := httptest.NewRecorder()
 
