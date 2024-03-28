@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"testing"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/windevkay/flho/internal/assert"
 )
 
@@ -23,7 +25,7 @@ func TestGenerateWorkflowUniqueId(t *testing.T) {
 func TestReadIDParam(t *testing.T) {
 	// Arrange
 	app := newTestApplication()
-	req, _ := http.NewRequest(http.MethodGet, "/v1/workflows/123", nil)
+	req, _ := http.NewRequest(http.MethodGet, "", nil)
 
 	tests := []struct {
 		name string
@@ -38,7 +40,9 @@ func TestReadIDParam(t *testing.T) {
 	// Act
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req.SetPathValue("id", tt.args)
+			params := httprouter.Params{{Key: "id", Value: tt.args}}
+			ctx := context.WithValue(req.Context(), httprouter.ParamsKey, params)
+			req = req.WithContext(ctx)
 
 			id, err := app.readIDParam(req)
 
@@ -51,3 +55,5 @@ func TestReadIDParam(t *testing.T) {
 		})
 	}
 }
+
+func TestWriteJSON(t *testing.T) {}

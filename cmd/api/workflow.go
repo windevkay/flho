@@ -62,7 +62,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
-		http.NotFound(w, r)
+		app.notFoundResponse(w, r)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			http.NotFound(w, r)
+			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
@@ -86,7 +86,7 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
-		http.NotFound(w, r)
+		app.notFoundResponse(w, r)
 		return
 	}
 
@@ -94,7 +94,7 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			http.NotFound(w, r)
+			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
@@ -164,7 +164,7 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
-		http.NotFound(w, r)
+		app.notFoundResponse(w, r)
 		return
 	}
 
@@ -172,7 +172,7 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			http.NotFound(w, r)
+			app.notFoundResponse(w, r)
 		default:
 			app.serverErrorResponse(w, r, err)
 		}

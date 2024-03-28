@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 const (
@@ -36,7 +38,9 @@ func (app *application) generateWorkflowUniqueId() string {
 // readIDParam extracts and parses the "id" parameter from the request URL.
 // It returns the parsed ID as an int64 value, or an error if the ID is invalid.
 func (app *application) readIDParam(r *http.Request) (int64, error) {
-	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	params := httprouter.ParamsFromContext(r.Context())
+	id, err := strconv.ParseInt(params.ByName("id"), 10, 64)
+
 	if err != nil || id < 1 {
 		return 0, errors.New("invalid ID parameter")
 	}

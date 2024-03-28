@@ -96,6 +96,7 @@ func openDB(cfg config) (*sql.DB, error) {
 
 	err = db.PingContext(ctx)
 	if err != nil {
+		db.Close()
 		return nil, err
 	}
 
