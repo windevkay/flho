@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	// lowerChars string = "abcdefghijklmnopqrstuvwxyz"
 	upperChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	digits     string = "0123456789"
 )
