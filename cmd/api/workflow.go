@@ -187,11 +187,9 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 
 func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name     string
-		States   []string
-		Page     int
-		PageSize int
-		Sort     string
+		Name   string
+		States []string
+		data.Filters
 	}
 
 	v := validator.New()
@@ -200,11 +198,12 @@ func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Reque
 
 	input.Name = app.readString(qs, "name", "")
 	input.States = app.readCSV(qs, "states", []string{})
-	input.Page = app.readInt(qs, "page", 1, v)
-	input.PageSize = app.readInt(qs, "page_size", 20, v)
-	input.Sort = app.readString(qs, "sort", "id")
+	input.Filters.Page = app.readInt(qs, "page", 1, v)
+	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
+	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Filters.SortSafeList = []string{"id", "name", "-id", "-name"}
 
-	if !v.Valid() {
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
