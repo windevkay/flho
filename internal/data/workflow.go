@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -42,6 +43,7 @@ func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 type WorkflowModelInterface interface {
 	Insert(workflow *Workflow) error
 	Get(id int64) (*Workflow, error)
+	GetAll(name string, states []string, filters Filters) ([]*Workflow, Metadata, error)
 	Update(workflow *Workflow) error
 	Delete(id int64) error
 }
@@ -102,6 +104,64 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 	}
 
 	return &workflow, nil
+}
+
+func (w WorkflowModel) GetAll(name string, states []string, filters Filters) ([]*Workflow, Metadata, error) {
+	query := fmt.Sprintf(`
+		SELECT count(*) OVER(), id, created_at, updated_at, uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active, version 
+		FROM workflows
+		WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
+		AND (states @> $2 OR $2 = '{}') 
+		ORDER BY %s %s, id ASC
+		LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	args := []any{name, pq.Array(states), filters.limit(), filters.offest()}
+
+	rows, err := w.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+
+	defer rows.Close()
+
+	totalRecords := 0
+	var workflows []*Workflow
+
+	for rows.Next() {
+		var workflow Workflow
+
+		err := rows.Scan(
+			&totalRecords, // scanned count
+			&workflow.ID,
+			&workflow.CreatedAt,
+			&workflow.UpdatedAt,
+			&workflow.UniqueID,
+			&workflow.Name,
+			pq.Array(&workflow.States),
+			&workflow.StartState,
+			&workflow.EndState,
+			&workflow.RetryWebhook,
+			&workflow.RetryAfter,
+			&workflow.Active,
+			&workflow.Version,
+		)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
+
+		workflows = append(workflows, &workflow)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+
+	return workflows, metadata, nil
 }
 
 func (w WorkflowModel) Update(workflow *Workflow) error {
