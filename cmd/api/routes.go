@@ -19,5 +19,5 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/v1/workflows/:id", app.updateWorkflowHandler)
 	router.HandlerFunc(http.MethodDelete, "/v1/workflows/:id", app.deleteWorkflowHandler)
 
-	return app.recoverPanic(router)
+	return app.recoverPanic(app.rateLimit(router))
 }
