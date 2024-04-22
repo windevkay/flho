@@ -167,7 +167,7 @@ func (w WorkflowModel) GetAll(name string, states []string, filters Filters) ([]
 func (w WorkflowModel) Update(workflow *Workflow) error {
 	query := `
 		UPDATE workflows
-		SET name = $1, states = $2, startstate = $3, endstate = $4, retrywebhook = $5, retryafter = $6, version = version + 1
+		SET updated_at = NOW(), name = $1, states = $2, startstate = $3, endstate = $4, retrywebhook = $5, retryafter = $6, version = version + 1
 		WHERE id = $7 AND version = $8
 		RETURNING version`
 
