@@ -12,11 +12,13 @@ var (
 
 type Models struct {
 	Workflows WorkflowModelInterface
+	Users     UserModelInterface
 }
 
 func GetModels(db *sql.DB) Models {
 	return Models{
 		Workflows: WorkflowModel{DB: db},
+		Users:     UserModel{DB: db},
 	}
 }
 

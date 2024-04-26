@@ -83,6 +83,34 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+func fullOrPartialUpdate(workflow *data.Workflow, input *struct {
+	Name         *string       `json:"name"`
+	States       []string      `json:"states"`
+	StartState   *string       `json:"startState"`
+	EndState     *string       `json:"endState"`
+	RetryWebhook *string       `json:"retryWebhook"`
+	RetryAfter   *data.Timeout `json:"retryAfter"`
+}) {
+	if input.Name != nil {
+		workflow.Name = *input.Name
+	}
+	if input.States != nil {
+		workflow.States = input.States
+	}
+	if input.StartState != nil {
+		workflow.StartState = *input.StartState
+	}
+	if input.EndState != nil {
+		workflow.EndState = *input.EndState
+	}
+	if input.RetryWebhook != nil {
+		workflow.RetryWebhook = *input.RetryWebhook
+	}
+	if input.RetryAfter != nil {
+		workflow.RetryAfter = *input.RetryAfter
+	}
+}
+
 func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -116,25 +144,8 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// achieve partial updates using non nil values
-	if input.Name != nil {
-		workflow.Name = *input.Name
-	}
-	if input.States != nil {
-		workflow.States = input.States
-	}
-	if input.StartState != nil {
-		workflow.StartState = *input.StartState
-	}
-	if input.EndState != nil {
-		workflow.EndState = *input.EndState
-	}
-	if input.RetryWebhook != nil {
-		workflow.RetryWebhook = *input.RetryWebhook
-	}
-	if input.RetryAfter != nil {
-		workflow.RetryAfter = *input.RetryAfter
-	}
+	// achieve full or partial updates using non nil values
+	fullOrPartialUpdate(workflow, &input)
 
 	v := validator.New()
 
