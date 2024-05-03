@@ -1,0 +1,28 @@
+{{define "subject"}}Welcome to FLHO!{{end}}
+
+{{define "plainBody"}}
+Hi {{.Name}},
+
+Thanks for coming onboard, we hope you enjoy using our State Management API :)
+
+FLHO Dev Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Welcome to FLHO!</title>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+
+<body>
+    <p>Hi {{.Name}},</p>
+    <p>Thanks for coming onboard, we hope you enjoy using our State Management API :)</p>
+    <p>FLHO Dev Team</p>
+</body>
+
+</html>
+{{end}}
