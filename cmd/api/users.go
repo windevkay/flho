@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/windevkay/flho/internal/data"
 	"github.com/windevkay/flho/internal/validator"
@@ -52,8 +53,20 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// generate user activation token
+	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
 	app.background(func() {
-		err = app.mailer.Send(user.Email, "user_welcome.tmpl", user)
+		data := map[string]any{
+			"activationToken": token.Plaintext,
+			"name":            user.Name,
+		}
+
+		err = app.mailer.Send(user.Email, "user_welcome.tmpl", data)
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
