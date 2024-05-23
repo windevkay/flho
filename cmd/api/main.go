@@ -38,6 +38,9 @@ type config struct {
 		password string
 		sender   string
 	}
+	jwt struct {
+		secret string
+	}
 }
 
 type application struct {
@@ -71,6 +74,9 @@ func main() {
 	flag.StringVar(&cfg.smtp.username, "smtp-username", "6238f8cfdc74c8", "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "e769c6a4128aab", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "	FLHO <no-reply@flhoapp.dev>", "SMTP sender")
+
+	// jwt
+	flag.StringVar(&cfg.jwt.secret, "jwt-secret", "", "JWT secret")
 
 	flag.Parse()
 
