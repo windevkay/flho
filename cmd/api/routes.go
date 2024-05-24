@@ -14,11 +14,11 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 
-	router.HandlerFunc(http.MethodGet, "/v1/workflows", app.listWorkflowHandler)
-	router.HandlerFunc(http.MethodPost, "/v1/workflows", app.createWorkflowHandler)
-	router.HandlerFunc(http.MethodGet, "/v1/workflows/:id", app.showWorkflowHandler)
-	router.HandlerFunc(http.MethodPatch, "/v1/workflows/:id", app.updateWorkflowHandler)
-	router.HandlerFunc(http.MethodDelete, "/v1/workflows/:id", app.deleteWorkflowHandler)
+	router.HandlerFunc(http.MethodGet, "/v1/workflows", app.requireActivatedUser(app.listWorkflowHandler))
+	router.HandlerFunc(http.MethodPost, "/v1/workflows", app.requireActivatedUser(app.createWorkflowHandler))
+	router.HandlerFunc(http.MethodGet, "/v1/workflows/:id", app.requireActivatedUser(app.showWorkflowHandler))
+	router.HandlerFunc(http.MethodPatch, "/v1/workflows/:id", app.requireActivatedUser(app.updateWorkflowHandler))
+	router.HandlerFunc(http.MethodDelete, "/v1/workflows/:id", app.requireActivatedUser(app.deleteWorkflowHandler))
 
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)
