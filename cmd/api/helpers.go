@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,16 +14,21 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/windevkay/flho/internal/data"
 	"github.com/windevkay/flho/internal/validator"
-)
-
-const (
-	upperChars string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits     string = "0123456789"
 )
 
 // envelope is a helper type for creating JSON envelopes.
 type envelope map[string]interface{}
+
+// custom type for adding keys to request context
+type contextKey string
+
+const (
+	upperChars     string = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits         string = "0123456789"
+	userContextKey        = contextKey("user")
+)
 
 // generateWorkflowUniqueId generates a unique ID for a workflow.
 func (app *application) generateWorkflowUniqueId() string {
@@ -177,4 +183,18 @@ func (app *application) background(fn func()) {
 
 		fn()
 	}()
+}
+
+func (app *application) contextSetUser(r *http.Request, user *data.User) *http.Request {
+	ctx := context.WithValue(r.Context(), userContextKey, user)
+	return r.WithContext(ctx)
+}
+
+func (app *application) contextGetUser(r *http.Request) *data.User {
+	user, ok := r.Context().Value(userContextKey).(*data.User)
+	if !ok {
+		panic("missing user value in request context")
+	}
+
+	return user
 }

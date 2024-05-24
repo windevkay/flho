@@ -89,14 +89,38 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 	})
 }
 
+func (app *application) validateJWTToken(token string) (*jwt.Claims, error) {
+	// swap this out for check for assymetric algo
+	claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.secret))
+	if err != nil {
+		return nil, err
+	}
+
+	if !claims.Valid(time.Now()) {
+		return nil, err
+	}
+
+	if claims.Issuer != "github.com/windevkay" {
+		return nil, err
+	}
+
+	if !claims.AcceptAudience("github.com/windevkay") {
+		return nil, err
+	}
+
+	return claims, nil
+}
+
 func (app *application) authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// indicate to caches that the response may vary based on the value of the Authorization
+		// header in the request.
 		w.Header().Add("Vary", "Authorization")
 
 		authorizationHeader := r.Header.Get("Authorization")
 
 		if authorizationHeader == "" {
-			r = app.contextSetUser(r, data.AnonymousUser)
+			r = app.contextSetUser(r, data.Guest)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -109,24 +133,8 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		token := headerParts[1]
 
-		// swap this out for check for assymetric algo
-		claims, err := jwt.HMACCheck([]byte(token), []byte(app.config.jwt.secret))
+		claims, err := app.validateJWTToken(token)
 		if err != nil {
-			app.invalidAuthenticationTokenResponse(w, r)
-			return
-		}
-
-		if !claims.Valid(time.Now()) {
-			app.invalidAuthenticationTokenResponse(w, r)
-			return
-		}
-
-		if claims.Issuer != "github.com/windevkay" {
-			app.invalidAuthenticationTokenResponse(w, r)
-			return
-		}
-
-		if !claims.AcceptAudience("github.com/windevkay") {
 			app.invalidAuthenticationTokenResponse(w, r)
 			return
 		}
