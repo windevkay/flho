@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 	"net"
 	"net/http"
@@ -188,4 +189,25 @@ func (app *application) requireActivatedUser(next http.HandlerFunc) http.Handler
 	})
 
 	return app.requireAuthenticatedUser(fn)
+}
+
+func (app *application) metrics(next http.Handler) http.Handler {
+	var (
+		totalRequestsReceived           = expvar.NewInt("total_requests_received")
+		totalResponsesSent              = expvar.NewInt("total_responses_sent")
+		totalProcessingTimeMicroseconds = expvar.NewInt("total_processing_time_microseconds")
+	)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		totalRequestsReceived.Add(1)
+
+		next.ServeHTTP(w, r)
+
+		totalResponsesSent.Add(1)
+
+		duration := time.Since(start).Microseconds()
+		totalProcessingTimeMicroseconds.Add(duration)
+	})
 }

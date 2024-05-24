@@ -1,6 +1,7 @@
 package main
 
 import (
+	"expvar"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -14,7 +15,7 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 
-	router.HandlerFunc(http.MethodGet, "/v1/workflows", app.requireActivatedUser(app.listWorkflowHandler))
+	router.HandlerFunc(http.MethodGet, "/v1/workflows", app.requireAuthenticatedUser(app.listWorkflowHandler))
 	router.HandlerFunc(http.MethodPost, "/v1/workflows", app.requireActivatedUser(app.createWorkflowHandler))
 	router.HandlerFunc(http.MethodGet, "/v1/workflows/:id", app.requireActivatedUser(app.showWorkflowHandler))
 	router.HandlerFunc(http.MethodPatch, "/v1/workflows/:id", app.requireActivatedUser(app.updateWorkflowHandler))
@@ -25,5 +26,7 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodPost, "/v1/auth/token", app.createAuthenticationTokenHandler)
 
-	return app.recoverPanic(app.rateLimit(app.authenticate(router)))
+	router.Handler(http.MethodGet, "/debug/vars", expvar.Handler())
+
+	return app.metrics(app.recoverPanic(app.rateLimit(app.authenticate(router))))
 }
