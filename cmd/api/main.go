@@ -60,7 +60,7 @@ func main() {
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
 	// db connection and db pool settings flags
-	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("FLHO_DB_DSN"), "PostgreSQL DSN")
+	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
 	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
 	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
 	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
@@ -71,11 +71,11 @@ func main() {
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
 
 	// email/smtp config flags
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "sandbox.smtp.mailtrap.io", "SMTP host")
+	flag.StringVar(&cfg.smtp.host, "smtp-host", "", "SMTP host")
 	flag.IntVar(&cfg.smtp.port, "smtp-port", 2525, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "6238f8cfdc74c8", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "e769c6a4128aab", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "	FLHO <no-reply@flhoapp.dev>", "SMTP sender")
+	flag.StringVar(&cfg.smtp.username, "smtp-username", "", "SMTP username")
+	flag.StringVar(&cfg.smtp.password, "smtp-password", "", "SMTP password")
+	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "FLHO <no-reply@flhoapp.dev>", "SMTP sender")
 
 	// jwt
 	flag.StringVar(&cfg.jwt.secret, "jwt-secret", "", "JWT secret")
