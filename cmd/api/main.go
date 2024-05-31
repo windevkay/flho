@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"expvar"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -13,11 +14,14 @@ import (
 
 	"github.com/windevkay/flho/internal/data"
 	"github.com/windevkay/flho/internal/mailer"
+	"github.com/windevkay/flho/internal/vcs"
 
 	_ "github.com/lib/pq"
 )
 
-const version = "1.0.0"
+var (
+	version = vcs.Version()
+)
 
 type config struct {
 	port int
@@ -80,7 +84,14 @@ func main() {
 	// jwt
 	flag.StringVar(&cfg.jwt.secret, "jwt-secret", "", "JWT secret")
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	// provide a structured logger for the application
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
