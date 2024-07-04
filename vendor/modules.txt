@@ -12,6 +12,11 @@ github.com/lib/pq/scram
 # github.com/pascaldekloe/jwt v1.12.0
 ## explicit; go 1.14
 github.com/pascaldekloe/jwt
+# github.com/windevkay/flhoutils v1.0.0
+## explicit; go 1.22.1
+github.com/windevkay/flhoutils/errors
+github.com/windevkay/flhoutils/helpers
+github.com/windevkay/flhoutils/validator
 # golang.org/x/crypto v0.22.0
 ## explicit; go 1.18
 golang.org/x/crypto/bcrypt

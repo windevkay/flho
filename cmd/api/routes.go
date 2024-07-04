@@ -5,13 +5,14 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	errs "github.com/windevkay/flhoutils/errors"
 )
 
 func (app *application) routes() http.Handler {
 	router := httprouter.New()
 
-	router.NotFound = http.HandlerFunc(app.notFoundResponse)
-	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
+	router.NotFound = http.HandlerFunc(errs.NotFoundResponse)
+	router.MethodNotAllowed = http.HandlerFunc(errs.MethodNotAllowedResponse)
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 

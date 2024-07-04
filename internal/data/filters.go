@@ -3,7 +3,7 @@ package data
 import (
 	"strings"
 
-	"github.com/windevkay/flho/internal/validator"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 type Filters struct {

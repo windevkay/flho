@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/windevkay/flho/internal/validator"
+	"github.com/windevkay/flhoutils/validator"
 	"golang.org/x/crypto/bcrypt"
 )
 

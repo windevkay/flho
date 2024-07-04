@@ -8,7 +8,7 @@ import (
 	"encoding/base32"
 	"time"
 
-	"github.com/windevkay/flho/internal/validator"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 const (

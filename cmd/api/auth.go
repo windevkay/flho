@@ -8,7 +8,9 @@ import (
 
 	"github.com/pascaldekloe/jwt"
 	"github.com/windevkay/flho/internal/data"
-	"github.com/windevkay/flho/internal/validator"
+	errs "github.com/windevkay/flhoutils/errors"
+	"github.com/windevkay/flhoutils/helpers"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -17,9 +19,9 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		Password string `json:"password"`
 	}
 
-	err := app.readJSON(w, r, &input)
+	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		errs.BadRequestResponse(w, r, err)
 		return
 	}
 
@@ -29,7 +31,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	data.ValidatePasswordPlaintext(v, input.Password)
 
 	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -37,21 +39,21 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			app.invalidCredentialsResponse(w, r)
+			errs.InvalidCredentialsResponse(w, r)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
 
 	match, err := user.Password.Matches(input.Password)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
 	if !match {
-		app.invalidCredentialsResponse(w, r)
+		errs.InvalidCredentialsResponse(w, r)
 		return
 	}
 
@@ -66,12 +68,9 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	// swap out claims function for one that accepts assymetric algo - private key
 	jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(app.config.jwt.secret))
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"authentication_token": string(jwtBytes)}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"authentication_token": string(jwtBytes)}, nil)
 }

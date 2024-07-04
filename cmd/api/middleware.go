@@ -13,6 +13,7 @@ import (
 
 	"github.com/pascaldekloe/jwt"
 	"github.com/windevkay/flho/internal/data"
+	errs "github.com/windevkay/flhoutils/errors"
 	"golang.org/x/time/rate"
 )
 
@@ -32,7 +33,7 @@ func (app *application) recoverPanic(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				w.Header().Set("Connection", "close")
-				app.serverErrorResponse(w, r, fmt.Errorf("%s", err))
+				errs.ServerErrorResponse(w, r, fmt.Errorf("%s", err))
 			}
 		}()
 
@@ -71,7 +72,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 		if app.config.limiter.enabled {
 			ip, _, err := net.SplitHostPort(r.RemoteAddr)
 			if err != nil {
-				app.serverErrorResponse(w, r, err)
+				errs.ServerErrorResponse(w, r, err)
 				return
 			}
 
@@ -85,7 +86,7 @@ func (app *application) rateLimit(next http.Handler) http.Handler {
 
 			if !clients[ip].limiter.Allow() {
 				mu.Unlock()
-				app.rateLimitExceededResponse(w, r)
+				errs.RateLimitExceededResponse(w, r)
 				return
 			}
 
@@ -134,7 +135,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		headerParts := strings.Split(authorizationHeader, " ")
 		if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-			app.invalidAuthenticationTokenResponse(w, r)
+			errs.InvalidAuthenticationTokenResponse(w, r)
 			return
 		}
 
@@ -142,13 +143,13 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 
 		claims, err := app.validateJWTToken(token)
 		if err != nil {
-			app.invalidAuthenticationTokenResponse(w, r)
+			errs.InvalidAuthenticationTokenResponse(w, r)
 			return
 		}
 
 		userID, err := strconv.ParseInt(claims.Subject, 10, 64)
 		if err != nil {
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 			return
 		}
 
@@ -156,9 +157,9 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 		if err != nil {
 			switch {
 			case errors.Is(err, data.ErrRecordNotFound):
-				app.invalidAuthenticationTokenResponse(w, r)
+				errs.InvalidAuthenticationTokenResponse(w, r)
 			default:
-				app.serverErrorResponse(w, r, err)
+				errs.ServerErrorResponse(w, r, err)
 			}
 			return
 		}
@@ -174,7 +175,7 @@ func (app *application) requireAuthenticatedUser(next http.HandlerFunc) http.Han
 		user := app.contextGetUser(r)
 
 		if user.IsGuest() {
-			app.authenticationRequiredResponse(w, r)
+			errs.AuthenticationRequiredResponse(w, r)
 			return
 		}
 
@@ -187,7 +188,7 @@ func (app *application) requireActivatedUser(next http.HandlerFunc) http.Handler
 		user := app.contextGetUser(r)
 
 		if !user.Activated {
-			app.inactiveAccountResponse(w, r)
+			errs.InactiveAccountResponse(w, r)
 			return
 		}
 

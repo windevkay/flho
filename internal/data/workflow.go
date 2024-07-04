@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/windevkay/flho/internal/validator"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 type Workflow struct {

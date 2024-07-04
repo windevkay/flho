@@ -5,8 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/windevkay/flhoutils/helpers"
+
 	"github.com/windevkay/flho/internal/data"
-	"github.com/windevkay/flho/internal/validator"
+	errs "github.com/windevkay/flhoutils/errors"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -16,9 +19,9 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		Password string `json:"password"`
 	}
 
-	err := app.readJSON(w, r, &input)
+	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		errs.BadRequestResponse(w, r, err)
 		return
 	}
 
@@ -30,14 +33,14 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	err = user.Password.Set(input.Password)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
 	v := validator.New()
 
 	if data.ValidateUser(v, user); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -46,9 +49,9 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		switch {
 		case errors.Is(err, data.ErrDuplicateEmail):
 			v.AddError("email", "address already in use")
-			app.failedValidationResponse(w, r, v.Errors)
+			errs.FailedValidationResponse(w, r, v.Errors)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
@@ -56,11 +59,11 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	// generate user activation token
 	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
-	app.background(func() {
+	helpers.RunInBackground(func() {
 		data := map[string]any{
 			"activationToken": token.Plaintext,
 			"name":            user.Name,
@@ -70,12 +73,9 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		if err != nil {
 			app.logger.Error(err.Error())
 		}
-	})
+	}, &app.wg)
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"user": user}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"user": user}, nil)
 }
 
 func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,16 +83,16 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		TokenPlaintext string `json:"token"`
 	}
 
-	err := app.readJSON(w, r, &input)
+	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		errs.BadRequestResponse(w, r, err)
 		return
 	}
 
 	v := validator.New()
 
 	if data.ValidateTokenPlaintext(v, input.TokenPlaintext); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -101,9 +101,9 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
 			v.AddError("token", "invalid or expired activation token")
-			app.failedValidationResponse(w, r, v.Errors)
+			errs.FailedValidationResponse(w, r, v.Errors)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
@@ -114,21 +114,18 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrEditConflict):
-			app.editConflictResponse(w, r)
+			errs.EditConflictResponse(w, r)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
 
 	err = app.models.Tokens.DeleteScopeTokensForUser(data.ScopeActivation, user.ID)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"user": user}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"user": user}, nil)
 }

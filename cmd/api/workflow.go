@@ -6,7 +6,9 @@ import (
 	"net/http"
 
 	"github.com/windevkay/flho/internal/data"
-	"github.com/windevkay/flho/internal/validator"
+	errs "github.com/windevkay/flhoutils/errors"
+	"github.com/windevkay/flhoutils/helpers"
+	"github.com/windevkay/flhoutils/validator"
 )
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
@@ -19,16 +21,16 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		RetryAfter   data.Timeout `json:"retryAfter"`
 	}
 
-	err := app.readJSON(w, r, &input)
+	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		errs.BadRequestResponse(w, r, err)
 		return
 	}
 
 	v := validator.New()
 
 	workflow := &data.Workflow{
-		UniqueID:     app.generateWorkflowUniqueId(),
+		UniqueID:     helpers.GenerateUniqueId(15),
 		Name:         input.Name,
 		States:       input.States,
 		StartState:   input.StartState,
@@ -39,13 +41,13 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
 	err = app.models.Workflows.Insert(workflow)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
@@ -53,16 +55,13 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/workflows/%d", workflow.ID))
 
-	err = app.writeJSON(w, http.StatusCreated, envelope{"workflow": workflow}, headers)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"workflow": workflow}, headers)
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := app.readIDParam(r)
+	id, err := helpers.ReadIDParam(r)
 	if err != nil {
-		app.notFoundResponse(w, r)
+		errs.NotFoundResponse(w, r)
 		return
 	}
 
@@ -70,17 +69,14 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			app.notFoundResponse(w, r)
+			errs.NotFoundResponse(w, r)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"workflow": workflow}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"workflow": workflow}, nil)
 }
 
 func fullOrPartialUpdate(workflow *data.Workflow, input *struct {
@@ -112,9 +108,9 @@ func fullOrPartialUpdate(workflow *data.Workflow, input *struct {
 }
 
 func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := app.readIDParam(r)
+	id, err := helpers.ReadIDParam(r)
 	if err != nil {
-		app.notFoundResponse(w, r)
+		errs.NotFoundResponse(w, r)
 		return
 	}
 
@@ -122,9 +118,9 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			app.notFoundResponse(w, r)
+			errs.NotFoundResponse(w, r)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
@@ -138,9 +134,9 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 		RetryAfter   *data.Timeout `json:"retryAfter"`
 	}
 
-	err = app.readJSON(w, r, &input)
+	err = helpers.ReadJSON(w, r, &input)
 	if err != nil {
-		app.badRequestResponse(w, r, err)
+		errs.BadRequestResponse(w, r, err)
 		return
 	}
 
@@ -150,7 +146,7 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	v := validator.New()
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
@@ -158,24 +154,21 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrEditConflict):
-			app.editConflictResponse(w, r)
+			errs.EditConflictResponse(w, r)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"workflow": workflow}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"workflow": workflow}, nil)
 }
 
 func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := app.readIDParam(r)
+	id, err := helpers.ReadIDParam(r)
 	if err != nil {
-		app.notFoundResponse(w, r)
+		errs.NotFoundResponse(w, r)
 		return
 	}
 
@@ -183,17 +176,14 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
-			app.notFoundResponse(w, r)
+			errs.NotFoundResponse(w, r)
 		default:
-			app.serverErrorResponse(w, r, err)
+			errs.ServerErrorResponse(w, r, err)
 		}
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"message": "success: the workflow has been deleted"}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"message": "success: the workflow has been deleted"}, nil)
 }
 
 func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Request) {
@@ -207,26 +197,23 @@ func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Reque
 
 	qs := r.URL.Query()
 
-	input.Name = app.readString(qs, "name", "")
-	input.States = app.readCSV(qs, "states", []string{})
-	input.Filters.Page = app.readInt(qs, "page", 1, v)
-	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
-	input.Filters.Sort = app.readString(qs, "sort", "id")
+	input.Name = helpers.ReadString(qs, "name", "")
+	input.States = helpers.ReadCSV(qs, "states", []string{})
+	input.Filters.Page = helpers.ReadInt(qs, "page", 1, v)
+	input.Filters.PageSize = helpers.ReadInt(qs, "page_size", 20, v)
+	input.Filters.Sort = helpers.ReadString(qs, "sort", "id")
 	input.Filters.SortSafeList = []string{"id", "name", "-id", "-name"}
 
 	if data.ValidateFilters(v, input.Filters); !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
 	workflows, metadata, err := app.models.Workflows.GetAll(input.Name, input.States, input.Filters)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"workflows": workflows, "metadata": metadata}, nil)
-	if err != nil {
-		app.serverErrorResponse(w, r, err)
-	}
+	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"workflows": workflows, "metadata": metadata}, nil)
 }
