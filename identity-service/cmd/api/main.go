@@ -13,7 +13,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/windevkay/flho/workflow_service/internal/data"
+	"github.com/windevkay/flho/identity_service/internal/data"
 )
 
 var (
@@ -33,6 +33,9 @@ type config struct {
 		rps     float64
 		burst   int
 		enabled bool
+	}
+	jwt struct {
+		secret string
 	}
 }
 
@@ -59,6 +62,9 @@ func main() {
 	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
 	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
 	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	// jwt
+	flag.StringVar(&cfg.jwt.secret, "jwt-secret", "", "JWT secret")
 
 	displayVersion := flag.Bool("version", false, "Display version and exit")
 
