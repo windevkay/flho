@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -46,6 +50,11 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
+	if !user.Activated {
+		errs.InactiveAccountResponse(w, r)
+		return
+	}
+
 	match, err := user.Password.Matches(input.Password)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
@@ -57,16 +66,32 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
+	// fetch private key needed for token creation
+	privKeyPath := filepath.Join(".", "keys", "ec_private_key.pem")
+	privPem, err := os.ReadFile(privKeyPath)
+	if err != nil {
+		errs.ServerErrorResponse(w, r, err)
+		return
+	}
+	block, _ := pem.Decode(privPem)
+	priv, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		errs.ServerErrorResponse(w, r, err)
+		return
+	}
+
 	var claims jwt.Claims
 	claims.Subject = strconv.FormatInt(user.ID, 10)
 	claims.Issued = jwt.NewNumericTime(time.Now())
 	claims.NotBefore = jwt.NewNumericTime(time.Now())
 	claims.Expires = jwt.NewNumericTime(time.Now().Add(24 * time.Hour))
-	claims.Issuer = "github.com/windevkay"
-	claims.Audiences = []string{"github.com/windevkay"}
+	// swap to env variables
+	claims.Issuer = "github.com/windevkay/flho/identity-service"
+	claims.Audiences = []string{"github.com/windevkay/flho"}
 
 	// swap out claims function for one that accepts assymetric algo - private key
-	jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(app.config.jwt.secret))
+	//jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(app.config.jwt.secret))
+	jwtBytes, err := claims.ECDSASign(jwt.ES256, priv)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return

@@ -49,6 +49,9 @@ setup_server_app(){
     go get golang.org/x/time@v0.5.0
     go get golang.org/x/crypto@v0.22.0
 
+    echo -e "\nInstalling JWT package"
+    go get github.com/pascaldekloe/jwt@v1.12.0
+
     echo -e "\nInstalling FLHO utils"
     go get github.com/windevkay/flhoutils@latest
 

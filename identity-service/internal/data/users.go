@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrDuplicateEmail = errors.New("duplicate email")
-	Guest             = &User{}
 )
 
 type User struct {
@@ -25,10 +24,6 @@ type User struct {
 	Password  password   `json:"-"`
 	Activated bool       `json:"activated"`
 	Version   int        `json:"-"`
-}
-
-func (u *User) IsGuest() bool {
-	return u == Guest
 }
 
 type password struct {

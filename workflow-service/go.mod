@@ -8,3 +8,5 @@ require (
 	github.com/windevkay/flhoutils v1.0.0
 	golang.org/x/time v0.5.0
 )
+
+require github.com/pascaldekloe/jwt v1.12.0

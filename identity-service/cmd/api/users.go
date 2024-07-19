@@ -68,7 +68,7 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 			"activationToken": token.Plaintext,
 			"name":            user.Name,
 		}
-
+		// publish to rabbitMQ for mailer service to consume
 		err = app.mailer.Send(user.Email, "user_welcome.tmpl", data)
 		if err != nil {
 			app.logger.Error(err.Error())
