@@ -3,7 +3,8 @@ package main
 import (
 	"errors"
 	"net/http"
-	"time"
+
+	// "time"
 
 	"github.com/windevkay/flhoutils/helpers"
 
@@ -57,23 +58,23 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	// generate user activation token
-	token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
-	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
-		return
-	}
+	//token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	// if err != nil {
+	// 	errs.ServerErrorResponse(w, r, err)
+	// 	return
+	// }
 
-	helpers.RunInBackground(func() {
-		data := map[string]any{
-			"activationToken": token.Plaintext,
-			"name":            user.Name,
-		}
-		// publish to rabbitMQ for mailer service to consume
-		err = app.mailer.Send(user.Email, "user_welcome.tmpl", data)
-		if err != nil {
-			app.logger.Error(err.Error())
-		}
-	}, &app.wg)
+	// helpers.RunInBackground(func() {
+	// 	data := map[string]any{
+	// 		"activationToken": token.Plaintext,
+	// 		"name":            user.Name,
+	// 	}
+	// 	// publish to rabbitMQ for mailer service to consume
+	// 	err = app.mailer.Send(user.Email, "user_welcome.tmpl", data)
+	// 	if err != nil {
+	// 		app.logger.Error(err.Error())
+	// 	}
+	// }, &app.wg)
 
 	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"user": user}, nil)
 }

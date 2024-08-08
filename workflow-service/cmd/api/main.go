@@ -14,10 +14,11 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/windevkay/flho/workflow_service/internal/data"
+	"github.com/windevkay/flho/workflow_service/internal/vcs"
 )
 
 var (
-	version = "1"
+	version = vcs.Version()
 )
 
 type config struct {
