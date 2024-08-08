@@ -1,4 +1,6 @@
-FROM golang:1.22
+FROM alpine:latest
+
+RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
