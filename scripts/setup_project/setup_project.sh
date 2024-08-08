@@ -21,9 +21,18 @@ shift $((OPTIND-1))
 
 # Helpers
 setup_folders(){
-    mkdir bin cmd cmd/api internal internal/data
+    mkdir bin cmd docker cmd/api internal internal/data internal/vcs
     touch cmd/api/main.go
+
+    touch internal/vcs/vcs.go
+    cp ../scripts/setup_project/files/vcs.go.tpl internal/vcs/vcs.go
+
     touch Dockerfile
+    cp ../scripts/setup_project/files/docker.tpl Dockerfile
+
+    touch docker-compose.yaml
+    touch .env
+    touch Makefile
 }
 
 setup_server_files(){

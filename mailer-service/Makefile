@@ -1,5 +1,5 @@
-# Include variables from the .envrc file
-include .envrc
+# Include variables from the .env file
+include .env
 
 
 # ==================================================================================== #
@@ -26,28 +26,18 @@ confirm:
 
 ## run/api: run the cmd/api application
 .PHONY: run/api
-run/api:
-	@go run ./cmd/api -db-dsn=${FLHO_DB_DSN} -smtp-host=${SMTP_HOST} -smtp-username=${SMTP_USERNAME} -smtp-password=${SMTP_PASSWORD}
+run/api: build/api
+	@echo 'Running Docker Compose'
+	docker compose -f docker-compose.yaml up --build -d
+	@echo 'Docker images started!'
 
 
-## db/psql: connect to the database using psql
-.PHONY: db/psql
-db/psql:
-	psql ${FLHO_DB_DSN}
-
-
-## db/migrations/new name=$1: create a new database migration
-.PHONY: db/migrations/new
-db/migrations/new:
-	@echo 'Creating migration files for ${name}...'
-	migrate create -seq -ext=.sql -dir=./migrations ${name}
-
-
-## db/migrations/up: apply all up database migrations
-.PHONY: db/migrations/up
-db/migrations/up: confirm
-	@echo 'Running up migrations...'
-	migrate -path ./migrations -database ${FLHO_DB_DSN} up
+## down: stop docker compose
+.PHONY: down
+down:
+	@echo 'Stopping docker compose...'
+	docker compose -f docker-compose.yaml down
+	@echo 'Done!'
 
 
 # ==================================================================================== #
@@ -82,6 +72,6 @@ vendor:
 ## build/api: build the cmd/api application
 .PHONY: build/api
 build/api:
-	@echo 'Building cmd/api...'
-	go build -ldflags='-s' -o=./bin/api ./cmd/api
+	@echo 'Building cmd/api targetting 64 bit linux...'
 	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd64/api ./cmd/api
+	@echo 'Binary generation successful!'
