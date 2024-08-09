@@ -8,7 +8,7 @@ services:
     depends_on:
       - identity-service-database
     ports: 
-      - "4000:4000"
+      - "4002:4000"
     deploy:
       mode: replicated
       replicas: 1
@@ -18,7 +18,7 @@ services:
   identity-service-database:
     image: 'postgres:14.2'
     ports:
-      - "5432:5432"
+      - "5433:5432"
     restart: always
     deploy:
       mode: replicated
