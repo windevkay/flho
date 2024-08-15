@@ -2,7 +2,7 @@ package data
 
 type MockWorkflowModel struct{}
 
-func (w MockWorkflowModel) Insert(workflow *Workflow) error {
+func (w MockWorkflowModel) InsertWithTx(workflow *Workflow) error {
 	return nil
 }
 

@@ -13,12 +13,12 @@ import (
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name         string       `json:"name"`
-		States       []string     `json:"states"`
-		StartState   string       `json:"startState"`
-		EndState     string       `json:"endState"`
-		RetryWebhook string       `json:"retryWebhook"`
-		RetryAfter   data.Timeout `json:"retryAfter"`
+		Name   string       `json:"name"`
+		States []data.State `json:"states"`
+		// StartState   string       `json:"startState"`
+		// EndState     string       `json:"endState"`
+		// RetryWebhook string       `json:"retryWebhook"`
+		// RetryAfter   data.Timeout `json:"retryAfter"`
 	}
 
 	err := helpers.ReadJSON(w, r, &input)
@@ -30,14 +30,15 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	v := validator.New()
 
 	workflow := &data.Workflow{
-		UniqueID:     helpers.GenerateUniqueId(15),
-		Name:         input.Name,
-		States:       input.States,
-		StartState:   input.StartState,
-		EndState:     input.EndState,
-		RetryWebhook: input.RetryWebhook,
-		RetryAfter:   input.RetryAfter,
-		Active:       true,
+		// OrganizationId: get this data from authenticated org
+		UniqueID: helpers.GenerateUniqueId(15),
+		Name:     input.Name,
+		States:   input.States,
+		// StartState:   input.StartState,
+		// EndState:     input.EndState,
+		// RetryWebhook: input.RetryWebhook,
+		// RetryAfter:   input.RetryAfter,
+		Active: true,
 	}
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
@@ -45,7 +46,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = app.models.Workflows.Insert(workflow)
+	err = app.models.Workflows.InsertWithTx(workflow)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return

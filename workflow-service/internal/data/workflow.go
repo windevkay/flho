@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/lib/pq"
@@ -13,35 +12,36 @@ import (
 )
 
 type Workflow struct {
-	ID           int64      `json:"-"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
-	UniqueID     string     `json:"uniqueId"`
-	Name         string     `json:"name"`
-	States       []string   `json:"states"`
-	StartState   string     `json:"startState"`
-	EndState     string     `json:"endState"`
-	RetryWebhook string     `json:"retryWebhook,omitempty"`
-	RetryAfter   Timeout    `json:"retryAfter,omitempty"`
-	Active       bool       `json:"active"`
-	Version      int32      `json:"version"`
+	ID             int64      `json:"id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      *time.Time `json:"updated_at,omitempty"`
+	OrganizationId int64      `json:"organizationId"`
+	UniqueID       string     `json:"uniqueId"`
+	Name           string     `json:"name"`
+	States         []State    `json:"states"`
+	//StartState string     `json:"startState"`
+	//EndState   string     `json:"endState"`
+	//RetryWebhook string     `json:"retryWebhook,omitempty"`
+	//RetryAfter   Timeout    `json:"retryAfter,omitempty"`
+	Active  bool  `json:"active"`
+	Version int32 `json:"version"`
 }
 
 func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 	v.Check(w.Name != "", "name", "must be provided")
 
 	v.Check(len(w.States) >= 2, "states", "must have atleast 2 values")
-	v.Check(validator.Unique(w.States), "states", "must not contain duplicate values")
+	//v.Check(validator.Unique(w.States), "states", "must not contain duplicate values")
 
-	v.Check(w.StartState != "", "startState", "must be provided")
-	v.Check(slices.Contains(w.States, w.StartState), "startState", "must be part of the states list")
+	// v.Check(w.StartState != "", "startState", "must be provided")
+	// v.Check(slices.Contains(w.States, w.StartState), "startState", "must be part of the states list")
 
-	v.Check(w.EndState != "", "endState", "must be provided")
-	v.Check(slices.Contains(w.States, w.EndState), "endState", "must be part of the states list")
+	// v.Check(w.EndState != "", "endState", "must be provided")
+	// v.Check(slices.Contains(w.States, w.EndState), "endState", "must be part of the states list")
 }
 
 type WorkflowModelInterface interface {
-	Insert(workflow *Workflow) error
+	InsertWithTx(workflow *Workflow) error
 	Get(id int64) (*Workflow, error)
 	GetAll(name string, states []string, filters Filters) ([]*Workflow, Metadata, error)
 	Update(workflow *Workflow) error
@@ -52,18 +52,52 @@ type WorkflowModel struct {
 	DB *sql.DB
 }
 
-func (w WorkflowModel) Insert(workflow *Workflow) error {
-	query := `INSERT INTO workflows (uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-				RETURNING created_at, updated_at, version`
+func (w WorkflowModel) InsertWithTx(workflow *Workflow) error {
+	query := `INSERT INTO workflows (organizationid, uniqueid, name, active)
+				VALUES ($1, $2, $3, $4)
+				RETURNING id, created_at, updated_at, version`
 
-	args := []any{workflow.UniqueID, workflow.Name, pq.Array(workflow.States), workflow.StartState, workflow.EndState, workflow.RetryWebhook, workflow.RetryAfter, workflow.Active}
+	args := []any{workflow.OrganizationId, workflow.UniqueID, workflow.Name, workflow.Active}
 
 	// db operations have 3 seconds max to resolve
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return w.DB.QueryRowContext(ctx, query, args...).Scan(&workflow.CreatedAt, &workflow.UpdatedAt, &workflow.Version)
+	// Start a transaction using the context
+	tx, err := w.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// Ensure the transaction is rolled back in case of an error
+	defer tx.Rollback()
+
+	err = tx.QueryRow(query, args...).Scan(&workflow.ID, &workflow.CreatedAt, &workflow.UpdatedAt, &workflow.Version)
+	if err != nil {
+		return err
+	}
+
+	// insert states for workflow
+	for _, state := range workflow.States {
+		query := `INSERT INTO states (workflowid, name, retryurl, retryafter)
+                    VALUES ($1, $2, $3, $4)
+                    RETURNING created_at`
+
+		args := []any{workflow.ID, state.Name, state.RetryUrl, state.RetryAfter}
+
+		err := tx.QueryRow(query, args...).Scan(&state.CreatedAt)
+		if err != nil {
+			return err
+		}
+	}
+
+	// commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (w WorkflowModel) Get(id int64) (*Workflow, error) {
@@ -71,36 +105,56 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 		return nil, ErrRecordNotFound
 	}
 
-	query := `SELECT id, created_at, updated_at, uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active, version FROM workflows WHERE id = $1`
-
-	var workflow Workflow
-
-	// db operations have 3 seconds max to resolve
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := w.DB.QueryRowContext(ctx, query, id).Scan(
-		&workflow.ID,
-		&workflow.CreatedAt,
-		&workflow.UpdatedAt,
-		&workflow.UniqueID,
-		&workflow.Name,
-		pq.Array(&workflow.States),
-		&workflow.StartState,
-		&workflow.EndState,
-		&workflow.RetryWebhook,
-		&workflow.RetryAfter,
-		&workflow.Active,
-		&workflow.Version,
-	)
+	query := `
+        SELECT 
+            w.id, w.uniqueid, w.name, w.active, w.created_at, w.updated_at, w.version,
+            s.id, s.name, s.retryurl, s.retryafter, s.created_at
+        FROM 
+            workflows w
+        LEFT JOIN 
+            states s ON w.id = s.workflowid
+        WHERE 
+            w.id = $1`
 
+	rows, err := w.DB.QueryContext(ctx, query, id)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
-		default:
+		return nil, err
+	}
+	defer rows.Close()
+
+	var workflow Workflow
+	workflow.States = []State{}
+
+	// Iterate over the rows
+	for rows.Next() {
+		var state State
+		err := rows.Scan(
+			&workflow.ID,
+			&workflow.UniqueID,
+			&workflow.Name,
+			&workflow.Active,
+			&workflow.CreatedAt,
+			&workflow.UpdatedAt,
+			&workflow.Version,
+			&state.ID,
+			&state.Name,
+			&state.RetryUrl,
+			&state.RetryAfter,
+			&state.CreatedAt,
+		)
+		if err != nil {
 			return nil, err
 		}
+
+		workflow.States = append(workflow.States, state)
+	}
+
+	// Check for errors from iterating over rows
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return &workflow, nil
