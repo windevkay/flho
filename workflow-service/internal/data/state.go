@@ -25,9 +25,9 @@ type StateModel struct {
 }
 
 func (s StateModel) Insert(state *State, workflowId int64) error {
-	query := `INSERT INTO states (workflowid, name, retryurl, retryafter)
+	query := `INSERT INTO states (workflow_id, name, retryurl, retryafter)
 				VALUES ($1, $2, $3, $4)
-				RETURNING created_at, workflowid`
+				RETURNING created_at, workflow_id`
 
 	args := []any{workflowId, state.Name, state.RetryUrl, state.RetryAfter}
 

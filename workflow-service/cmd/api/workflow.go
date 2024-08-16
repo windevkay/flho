@@ -15,10 +15,6 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	var input struct {
 		Name   string       `json:"name"`
 		States []data.State `json:"states"`
-		// StartState   string       `json:"startState"`
-		// EndState     string       `json:"endState"`
-		// RetryWebhook string       `json:"retryWebhook"`
-		// RetryAfter   data.Timeout `json:"retryAfter"`
 	}
 
 	err := helpers.ReadJSON(w, r, &input)
@@ -30,15 +26,11 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 	v := validator.New()
 
 	workflow := &data.Workflow{
-		// OrganizationId: get this data from authenticated org
-		UniqueID: helpers.GenerateUniqueId(15),
-		Name:     input.Name,
-		States:   input.States,
-		// StartState:   input.StartState,
-		// EndState:     input.EndState,
-		// RetryWebhook: input.RetryWebhook,
-		// RetryAfter:   input.RetryAfter,
-		Active: true,
+		IdentityId: app.contextGetUser(r),
+		UniqueID:   helpers.GenerateUniqueId(15),
+		Name:       input.Name,
+		States:     input.States,
+		Active:     true,
 	}
 
 	if data.ValidateWorkflow(v, workflow); !v.Valid() {
@@ -81,30 +73,10 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func fullOrPartialUpdate(workflow *data.Workflow, input *struct {
-	Name         *string       `json:"name"`
-	States       []string      `json:"states"`
-	StartState   *string       `json:"startState"`
-	EndState     *string       `json:"endState"`
-	RetryWebhook *string       `json:"retryWebhook"`
-	RetryAfter   *data.Timeout `json:"retryAfter"`
+	Name *string `json:"name"`
 }) {
 	if input.Name != nil {
 		workflow.Name = *input.Name
-	}
-	if input.States != nil {
-		workflow.States = input.States
-	}
-	if input.StartState != nil {
-		workflow.StartState = *input.StartState
-	}
-	if input.EndState != nil {
-		workflow.EndState = *input.EndState
-	}
-	if input.RetryWebhook != nil {
-		workflow.RetryWebhook = *input.RetryWebhook
-	}
-	if input.RetryAfter != nil {
-		workflow.RetryAfter = *input.RetryAfter
 	}
 }
 
@@ -127,12 +99,7 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	var input struct {
-		Name         *string       `json:"name"`
-		States       []string      `json:"states"`
-		StartState   *string       `json:"startState"`
-		EndState     *string       `json:"endState"`
-		RetryWebhook *string       `json:"retryWebhook"`
-		RetryAfter   *data.Timeout `json:"retryAfter"`
+		Name *string `json:"name"`
 	}
 
 	err = helpers.ReadJSON(w, r, &input)
@@ -189,28 +156,31 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 
 func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Name   string
-		States []string
-		data.Filters
+		Page     int `json:"page"`
+		PageSize int `json:"pageSize"`
+	}
+
+	err := helpers.ReadJSON(w, r, &input)
+	if err != nil {
+		errs.BadRequestResponse(w, r, err)
+		return
 	}
 
 	v := validator.New()
 
-	qs := r.URL.Query()
+	filter := data.Filters{
+		Page:         input.Page,
+		PageSize:     input.PageSize,
+		Sort:         "-id",
+		SortSafeList: []string{"id", "name", "-id", "-name"},
+	}
 
-	input.Name = helpers.ReadString(qs, "name", "")
-	input.States = helpers.ReadCSV(qs, "states", []string{})
-	input.Filters.Page = helpers.ReadInt(qs, "page", 1, v)
-	input.Filters.PageSize = helpers.ReadInt(qs, "page_size", 20, v)
-	input.Filters.Sort = helpers.ReadString(qs, "sort", "id")
-	input.Filters.SortSafeList = []string{"id", "name", "-id", "-name"}
-
-	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+	if data.ValidateFilters(v, filter); !v.Valid() {
 		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	workflows, metadata, err := app.models.Workflows.GetAll(input.Name, input.States, input.Filters)
+	workflows, metadata, err := app.models.Workflows.GetAll(1, filter)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return

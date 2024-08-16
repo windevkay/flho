@@ -14,7 +14,7 @@ func (w MockWorkflowModel) Get(id int64) (*Workflow, error) {
 	return workflow, nil
 }
 
-func (w MockWorkflowModel) GetAll(name string, states []string, filters Filters) ([]*Workflow, Metadata, error) {
+func (w MockWorkflowModel) GetAll(organizationId int64, filters Filters) ([]*Workflow, Metadata, error) {
 	var workflows []*Workflow
 
 	workflow := &Workflow{

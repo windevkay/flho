@@ -7,43 +7,31 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lib/pq"
 	"github.com/windevkay/flhoutils/validator"
 )
 
 type Workflow struct {
-	ID             int64      `json:"id"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      *time.Time `json:"updated_at,omitempty"`
-	OrganizationId int64      `json:"organizationId"`
-	UniqueID       string     `json:"uniqueId"`
-	Name           string     `json:"name"`
-	States         []State    `json:"states"`
-	//StartState string     `json:"startState"`
-	//EndState   string     `json:"endState"`
-	//RetryWebhook string     `json:"retryWebhook,omitempty"`
-	//RetryAfter   Timeout    `json:"retryAfter,omitempty"`
-	Active  bool  `json:"active"`
-	Version int32 `json:"version"`
+	ID         int64      `json:"id"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+	IdentityId int64      `json:"identityId,omitempty"`
+	UniqueID   string     `json:"uniqueId"`
+	Name       string     `json:"name"`
+	States     []State    `json:"states"`
+	Active     bool       `json:"active"`
+	Version    int32      `json:"version"`
 }
 
 func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 	v.Check(w.Name != "", "name", "must be provided")
 
 	v.Check(len(w.States) >= 2, "states", "must have atleast 2 values")
-	//v.Check(validator.Unique(w.States), "states", "must not contain duplicate values")
-
-	// v.Check(w.StartState != "", "startState", "must be provided")
-	// v.Check(slices.Contains(w.States, w.StartState), "startState", "must be part of the states list")
-
-	// v.Check(w.EndState != "", "endState", "must be provided")
-	// v.Check(slices.Contains(w.States, w.EndState), "endState", "must be part of the states list")
 }
 
 type WorkflowModelInterface interface {
 	InsertWithTx(workflow *Workflow) error
 	Get(id int64) (*Workflow, error)
-	GetAll(name string, states []string, filters Filters) ([]*Workflow, Metadata, error)
+	GetAll(identityId int64, filters Filters) ([]*Workflow, Metadata, error)
 	Update(workflow *Workflow) error
 	Delete(id int64) error
 }
@@ -53,11 +41,11 @@ type WorkflowModel struct {
 }
 
 func (w WorkflowModel) InsertWithTx(workflow *Workflow) error {
-	query := `INSERT INTO workflows (organizationid, uniqueid, name, active)
+	query := `INSERT INTO workflows (identity_id, uniqueid, name, active)
 				VALUES ($1, $2, $3, $4)
 				RETURNING id, created_at, updated_at, version`
 
-	args := []any{workflow.OrganizationId, workflow.UniqueID, workflow.Name, workflow.Active}
+	args := []any{workflow.IdentityId, workflow.UniqueID, workflow.Name, workflow.Active}
 
 	// db operations have 3 seconds max to resolve
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -79,7 +67,7 @@ func (w WorkflowModel) InsertWithTx(workflow *Workflow) error {
 
 	// insert states for workflow
 	for _, state := range workflow.States {
-		query := `INSERT INTO states (workflowid, name, retryurl, retryafter)
+		query := `INSERT INTO states (workflow_id, name, retryurl, retryafter)
                     VALUES ($1, $2, $3, $4)
                     RETURNING created_at`
 
@@ -115,7 +103,7 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
         FROM 
             workflows w
         LEFT JOIN 
-            states s ON w.id = s.workflowid
+            states s ON w.id = s.workflow_id
         WHERE 
             w.id = $1`
 
@@ -160,19 +148,18 @@ func (w WorkflowModel) Get(id int64) (*Workflow, error) {
 	return &workflow, nil
 }
 
-func (w WorkflowModel) GetAll(name string, states []string, filters Filters) ([]*Workflow, Metadata, error) {
+func (w WorkflowModel) GetAll(organizationId int64, filters Filters) ([]*Workflow, Metadata, error) {
 	query := fmt.Sprintf(`
-		SELECT count(*) OVER(), id, created_at, updated_at, uniqueid, name, states, startstate, endstate, retrywebhook, retryafter, active, version 
-		FROM workflows
-		WHERE (to_tsvector('simple', name) @@ plainto_tsquery('simple', $1) OR $1 = '')
-		AND (states @> $2 OR $2 = '{}') 
-		ORDER BY %s %s, id ASC
-		LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
+		SELECT count(*) OVER(), id, created_at, updated_at, uniqueid, name, active, version 
+		FROM workflows w
+		WHERE w.identity_id = $1
+		ORDER BY %s %s
+		LIMIT $2 OFFSET $3`, filters.sortColumn(), filters.sortDirection())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{name, pq.Array(states), filters.limit(), filters.offest()}
+	args := []any{organizationId, filters.limit(), filters.offest()}
 
 	rows, err := w.DB.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -194,11 +181,6 @@ func (w WorkflowModel) GetAll(name string, states []string, filters Filters) ([]
 			&workflow.UpdatedAt,
 			&workflow.UniqueID,
 			&workflow.Name,
-			pq.Array(&workflow.States),
-			&workflow.StartState,
-			&workflow.EndState,
-			&workflow.RetryWebhook,
-			&workflow.RetryAfter,
 			&workflow.Active,
 			&workflow.Version,
 		)
@@ -221,17 +203,12 @@ func (w WorkflowModel) GetAll(name string, states []string, filters Filters) ([]
 func (w WorkflowModel) Update(workflow *Workflow) error {
 	query := `
 		UPDATE workflows
-		SET updated_at = NOW(), name = $1, states = $2, startstate = $3, endstate = $4, retrywebhook = $5, retryafter = $6, version = version + 1
-		WHERE id = $7 AND version = $8
+		SET updated_at = NOW(), name = $1, version = version + 1
+		WHERE id = $2 AND version = $3
 		RETURNING version`
 
 	args := []any{
 		workflow.Name,
-		pq.Array(workflow.States),
-		workflow.StartState,
-		workflow.EndState,
-		workflow.RetryWebhook,
-		workflow.RetryAfter,
 		workflow.ID,
 		workflow.Version,
 	}

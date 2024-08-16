@@ -39,7 +39,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
-	user, err := app.models.Users.GetByEmail(input.Email)
+	identity, err := app.models.Identities.GetByEmail(input.Email)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -50,12 +50,12 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
-	if !user.Activated {
+	if !identity.Activated {
 		errs.InactiveAccountResponse(w, r)
 		return
 	}
 
-	match, err := user.Password.Matches(input.Password)
+	match, err := identity.Password.Matches(input.Password)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return
@@ -81,7 +81,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 
 	var claims jwt.Claims
-	claims.Subject = strconv.FormatInt(user.ID, 10)
+	claims.Subject = strconv.FormatInt(identity.ID, 10)
 	claims.Issued = jwt.NewNumericTime(time.Now())
 	claims.NotBefore = jwt.NewNumericTime(time.Now())
 	claims.Expires = jwt.NewNumericTime(time.Now().Add(24 * time.Hour))

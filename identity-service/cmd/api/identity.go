@@ -13,7 +13,7 @@ import (
 	"github.com/windevkay/flhoutils/validator"
 )
 
-func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name     string `json:"name"`
 		Email    string `json:"email"`
@@ -26,13 +26,13 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	user := &data.User{
+	identity := &data.Identity{
 		Name:      input.Name,
 		Email:     input.Email,
 		Activated: false,
 	}
 
-	err = user.Password.Set(input.Password)
+	err = identity.Password.Set(input.Password)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return
@@ -40,12 +40,12 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 
 	v := validator.New()
 
-	if data.ValidateUser(v, user); !v.Valid() {
+	if data.ValidateIdentity(v, identity); !v.Valid() {
 		errs.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	err = app.models.Users.Insert(user)
+	err = app.models.Identities.Insert(identity)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrDuplicateEmail):
@@ -76,10 +76,10 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	// 	}
 	// }, &app.wg)
 
-	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"user": user}, nil)
+	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"identity": identity}, nil)
 }
 
-func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
+func (app *application) activateIdentityHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		TokenPlaintext string `json:"token"`
 	}
@@ -97,7 +97,7 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	user, err := app.models.Users.GetUserForToken(data.ScopeActivation, input.TokenPlaintext)
+	identity, err := app.models.Identities.GetIdentityForToken(data.ScopeActivation, input.TokenPlaintext)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -109,9 +109,9 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	user.Activated = true
+	identity.Activated = true
 
-	err = app.models.Users.Update(user)
+	err = app.models.Identities.Update(identity)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrEditConflict):
@@ -122,11 +122,11 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = app.models.Tokens.DeleteScopeTokensForUser(data.ScopeActivation, user.ID)
+	err = app.models.Tokens.DeleteScopeTokensForIdentity(data.ScopeActivation, identity.ID)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"user": user}, nil)
+	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"identity": identity}, nil)
 }
