@@ -15,7 +15,7 @@ var (
 	ErrDuplicateEmail = errors.New("duplicate email")
 )
 
-type User struct {
+type Identity struct {
 	ID        int64      `json:"id"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
@@ -68,47 +68,47 @@ func ValidatePasswordPlaintext(v *validator.Validator, password string) {
 	v.Check(len(password) <= 72, "password", "must not be more than 72 bytes long")
 }
 
-func ValidateUser(v *validator.Validator, user *User) {
-	v.Check(user.Name != "", "name", "must be provided")
-	v.Check(len(user.Name) <= 500, "name", "must not be more than 500 bytes long")
+func ValidateIdentity(v *validator.Validator, identity *Identity) {
+	v.Check(identity.Name != "", "name", "must be provided")
+	v.Check(len(identity.Name) <= 500, "name", "must not be more than 500 bytes long")
 
-	ValidateEmail(v, user.Email)
+	ValidateEmail(v, identity.Email)
 
-	if user.Password.plaintext != nil {
-		ValidatePasswordPlaintext(v, *user.Password.plaintext)
+	if identity.Password.plaintext != nil {
+		ValidatePasswordPlaintext(v, *identity.Password.plaintext)
 	}
 
-	if user.Password.hash == nil {
+	if identity.Password.hash == nil {
 		panic("missing password hash for user")
 	}
 }
 
-type UserModelInterface interface {
-	Insert(user *User) error
-	GetByEmail(email string) (*User, error)
-	Update(user *User) error
-	GetUserForToken(tokenScope, tokenPlaintext string) (*User, error)
-	Get(id int64) (*User, error)
+type IdentityModelInterface interface {
+	Insert(identity *Identity) error
+	GetByEmail(email string) (*Identity, error)
+	Update(user *Identity) error
+	GetIdentityForToken(tokenScope, tokenPlaintext string) (*Identity, error)
+	Get(id int64) (*Identity, error)
 }
 
-type UserModel struct {
+type IdentityModel struct {
 	DB *sql.DB
 }
 
-func (u UserModel) Insert(user *User) error {
-	query := `INSERT INTO users (name, email, password_hash, activated)
+func (i IdentityModel) Insert(identity *Identity) error {
+	query := `INSERT INTO identities (name, email, password_hash, activated)
 				VALUES ($1, $2, $3, $4)
 				RETURNING id, created_at, updated_at, version`
 
-	args := []any{user.Name, user.Email, user.Password.hash, user.Activated}
+	args := []any{identity.Name, identity.Email, identity.Password.hash, identity.Activated}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := u.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt, &user.Version)
+	err := i.DB.QueryRowContext(ctx, query, args...).Scan(&identity.ID, &identity.CreatedAt, &identity.UpdatedAt, &identity.Version)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+		case err.Error() == `pq: duplicate key value violates unique constraint "identities_email_key"`:
 			return ErrDuplicateEmail
 		default:
 			return err
@@ -118,25 +118,25 @@ func (u UserModel) Insert(user *User) error {
 	return nil
 }
 
-func (u UserModel) GetByEmail(email string) (*User, error) {
+func (i IdentityModel) GetByEmail(email string) (*Identity, error) {
 	query := `SELECT id, created_at, updated_at, name, email, password_hash, activated, version
-				FROM users
+				FROM identities
 				WHERE email = $1`
 
-	var user User
+	var identity Identity
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := u.DB.QueryRowContext(ctx, query, email).Scan(
-		&user.ID,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-		&user.Name,
-		&user.Email,
-		&user.Password.hash,
-		&user.Activated,
-		&user.Version,
+	err := i.DB.QueryRowContext(ctx, query, email).Scan(
+		&identity.ID,
+		&identity.CreatedAt,
+		&identity.UpdatedAt,
+		&identity.Name,
+		&identity.Email,
+		&identity.Password.hash,
+		&identity.Activated,
+		&identity.Version,
 	)
 	if err != nil {
 		switch {
@@ -147,31 +147,31 @@ func (u UserModel) GetByEmail(email string) (*User, error) {
 		}
 	}
 
-	return &user, nil
+	return &identity, nil
 }
 
-func (u UserModel) Update(user *User) error {
-	query := `UPDATE users
+func (i IdentityModel) Update(identity *Identity) error {
+	query := `UPDATE identities
 				SET updated_at = NOW(), name = $1, email = $2, password_hash = $3, activated = $4, version = version + 1
 				WHERE id = $5 AND version = $6
 				RETURNING version`
 
 	args := []any{
-		user.Name,
-		user.Email,
-		user.Password.hash,
-		user.Activated,
-		user.ID,
-		user.Version,
+		identity.Name,
+		identity.Email,
+		identity.Password.hash,
+		identity.Activated,
+		identity.ID,
+		identity.Version,
 	}
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
 	defer cancel()
 
-	err := u.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
+	err := i.DB.QueryRowContext(ctx, query, args...).Scan(&identity.Version)
 	if err != nil {
 		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+		case err.Error() == `pq: duplicate key value violates unique constraint "identities_email_key"`:
 			return ErrDuplicateEmail
 		case errors.Is(err, sql.ErrNoRows):
 			return ErrEditConflict
@@ -183,26 +183,26 @@ func (u UserModel) Update(user *User) error {
 	return nil
 }
 
-func (u UserModel) GetUserForToken(tokenScope, tokenPlaintext string) (*User, error) {
+func (i IdentityModel) GetIdentityForToken(tokenScope, tokenPlaintext string) (*Identity, error) {
 	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
 
-	query := `SELECT users.id, users.created_at, users.updated_at, users.name, users.email, users.password_hash, users.activated, users.version
-				FROM users
-				INNER JOIN tokens
-				ON users.id = tokens.user_id
-				WHERE tokens.hash = $1
-				AND tokens.scope = $2
-				AND tokens.expiry > $3`
+	query := `SELECT i.id, i.created_at, i.updated_at, i.name, i.email, i.password_hash, i.activated, i.version
+				FROM identities i
+				INNER JOIN tokens t
+				ON i.id = t.user_id
+				WHERE t.hash = $1
+				AND t.scope = $2
+				AND t.expiry > $3`
 
 	args := []any{tokenHash[:], tokenScope, time.Now()}
 
-	var user User
+	var identity Identity
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := u.DB.QueryRowContext(ctx, query, args...).Scan(
-		&user.ID, &user.CreatedAt, &user.UpdatedAt, &user.Name, &user.Email, &user.Password.hash, &user.Activated, &user.Version)
+	err := i.DB.QueryRowContext(ctx, query, args...).Scan(
+		&identity.ID, &identity.CreatedAt, &identity.UpdatedAt, &identity.Name, &identity.Email, &identity.Password.hash, &identity.Activated, &identity.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -211,28 +211,27 @@ func (u UserModel) GetUserForToken(tokenScope, tokenPlaintext string) (*User, er
 			return nil, err
 		}
 	}
-
-	return &user, nil
+	return &identity, nil
 }
 
-func (u UserModel) Get(id int64) (*User, error) {
+func (i IdentityModel) Get(id int64) (*Identity, error) {
 	query := `SELECT id, created_at, name, email, password_hash, activated, version
-				FROM users
+				FROM identities
 				WHERE id = $1`
 
-	var user User
+	var identity Identity
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := u.DB.QueryRowContext(ctx, query, id).Scan(
-		&user.ID,
-		&user.CreatedAt,
-		&user.Name,
-		&user.Email,
-		&user.Password.hash,
-		&user.Activated,
-		&user.Version,
+	err := i.DB.QueryRowContext(ctx, query, id).Scan(
+		&identity.ID,
+		&identity.CreatedAt,
+		&identity.Name,
+		&identity.Email,
+		&identity.Password.hash,
+		&identity.Activated,
+		&identity.Version,
 	)
 
 	if err != nil {
@@ -244,5 +243,5 @@ func (u UserModel) Get(id int64) (*User, error) {
 		}
 	}
 
-	return &user, nil
+	return &identity, nil
 }

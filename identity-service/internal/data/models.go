@@ -11,14 +11,14 @@ var (
 )
 
 type Models struct {
-	Users  UserModelInterface
-	Tokens TokenModelInterface
+	Identities IdentityModelInterface
+	Tokens     TokenModelInterface
 }
 
 func GetModels(db *sql.DB) Models {
 	return Models{
-		Users:  UserModel{DB: db},
-		Tokens: TokenModel{DB: db},
+		Identities: IdentityModel{DB: db},
+		Tokens:     TokenModel{DB: db},
 	}
 }
 
