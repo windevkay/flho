@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option go_package = "github.com/windevkay/flho/mailer_service/proto";
+
+package proto;
+
+import "google/protobuf/empty.proto";
+
+service Mailer {
+    rpc SendWelcomeEmail (WelcomeEmailRequest) returns (google.protobuf.Empty) {}
+}
+
+message WelcomeEmailRequest {
+    string recipient = 1;
+    string file = 2;
+    Data data = 3;
+}
+
+message Data {
+    string name = 1;
+    string activationToken = 2;
+}

@@ -1,0 +1,43 @@
+{{define "subject"}}Welcome to FLHO!{{end}}
+
+{{define "plainBody"}}
+Hi {{.name}},
+
+Thanks for coming onboard, we hope you enjoy using our State Management API :)
+
+Please send a request to the `PUT /v1/users/activated` endpoint with the following JSON
+body to activate your account:
+
+{"token": "{{.activationToken}}"}
+
+Please note that this is a one-time use token and it will expire in 3 days.
+
+Thanks,
+
+FLHO Dev Team
+{{end}}
+
+{{define "htmlBody"}}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Welcome to FLHO!</title>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+
+<body>
+    <p>Hi {{.name}},</p>
+    <p>Thanks for coming onboard, we hope you enjoy using our State Management tool :)</p>
+    <p>Please send a request to the <code>PUT /v1/users/activated</code> endpoint with the
+    following JSON body to activate your account:</p>
+    <pre><code>
+    {"token": "{{.activationToken}}"}
+    </code></pre>
+    <p>Please note that this is a one-time use token and it will expire in 3 days.</p>
+    <p>FLHO Dev Team</p>
+</body>
+
+</html>
+{{end}}
