@@ -1,0 +1,16 @@
+services:
+  # MAILER SERVICE DEFINITIONS
+
+  # Service
+  mailer-service:
+    build:  .
+    restart: always
+    ports: 
+      - "4001:4000"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
