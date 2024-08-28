@@ -12,6 +12,10 @@ import (
 	"sync"
 	"time"
 
+	// pb "github.com/windevkay/flho/mailer_service/proto"
+	// "google.golang.org/grpc"
+	// "google.golang.org/grpc/credentials/insecure"
+
 	_ "github.com/lib/pq"
 	"github.com/windevkay/flho/identity_service/internal/data"
 	"github.com/windevkay/flho/identity_service/internal/vcs"
@@ -22,9 +26,10 @@ var (
 )
 
 type config struct {
-	port int
-	env  string
-	db   struct {
+	port              int
+	env               string
+	mailerServiceAddr string
+	db                struct {
 		dsn          string
 		maxOpenConns int
 		maxIdleConns int
@@ -49,6 +54,9 @@ func main() {
 	// environment flags
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+
+	// gRPC servers
+	flag.StringVar(&cfg.mailerServiceAddr, "mailer server", "mailer-service:4001", "Mailer service address")
 
 	// db connection and db pool settings flags
 	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
@@ -132,3 +140,13 @@ func openDB(cfg config) (*sql.DB, error) {
 
 	return db, nil
 }
+
+// func connectToMailerServer(cfg config) error {
+// 	conn, err := grpc.NewClient(cfg.mailerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials))
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	pb.NewMailerClient(conn)
+// 	return nil
+// }
