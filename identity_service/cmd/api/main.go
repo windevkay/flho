@@ -6,15 +6,16 @@ import (
 	"expvar"
 	"flag"
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"runtime"
 	"sync"
 	"time"
 
-	// pb "github.com/windevkay/flho/mailer_service/proto"
-	// "google.golang.org/grpc"
-	// "google.golang.org/grpc/credentials/insecure"
+	pb "github.com/windevkay/flho/mailer_service/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	_ "github.com/lib/pq"
 	"github.com/windevkay/flho/identity_service/internal/data"
@@ -43,10 +44,11 @@ type config struct {
 }
 
 type application struct {
-	config config
-	logger *slog.Logger
-	models data.Models
-	wg     sync.WaitGroup
+	config       config
+	logger       *slog.Logger
+	models       data.Models
+	mailerClient pb.MailerClient
+	wg           sync.WaitGroup
 }
 
 func main() {
@@ -91,6 +93,20 @@ func main() {
 
 	logger.Info("Connection to DB has been established")
 
+	// gRPC server connections
+	// mailer server
+	mailerConn, err := connectToMailerServer(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	defer mailerConn.Close()
+
+	mailerClient := pb.NewMailerClient(mailerConn)
+
+	logger.Info("gRPC connections have been established")
+
 	// metrics
 	expvar.NewString("version").Set(version)
 
@@ -107,9 +123,10 @@ func main() {
 	}))
 
 	app := &application{
-		config: cfg,
-		logger: logger,
-		models: data.GetModels(db),
+		config:       cfg,
+		logger:       logger,
+		models:       data.GetModels(db),
+		mailerClient: mailerClient,
 	}
 
 	err = app.serve()
@@ -141,12 +158,22 @@ func openDB(cfg config) (*sql.DB, error) {
 	return db, nil
 }
 
-// func connectToMailerServer(cfg config) error {
-// 	conn, err := grpc.NewClient(cfg.mailerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials))
-// 	if err != nil {
-// 		return err
-// 	}
+func connectToMailerServer(cfg config) (*grpc.ClientConn, error) {
+	var conn *grpc.ClientConn
+	var err error
 
-// 	pb.NewMailerClient(conn)
-// 	return nil
-// }
+	maxRetries := 5
+	initialBackoff := time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		conn, err = grpc.NewClient(cfg.mailerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err == nil {
+			return conn, nil
+		}
+
+		log.Printf("Failed to connect to mailer server (attempt %d/%d): %v", i+1, maxRetries, err)
+		time.Sleep(initialBackoff * (1 << i)) // Exponential backoff
+	}
+
+	return nil, err
+}

@@ -3,4 +3,4 @@
 
 bin/
 keys/
-docker/
+.docker/
