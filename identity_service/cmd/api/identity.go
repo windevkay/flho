@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
+	"time"
 
-	// "time"
-
+	pb "github.com/windevkay/flho/mailer_service/proto"
 	"github.com/windevkay/flhoutils/helpers"
 
 	"github.com/windevkay/flho/identity_service/internal/data"
@@ -58,23 +59,25 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 	}
 
 	// generate user activation token
-	//token, err := app.models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
-	// if err != nil {
-	// 	errs.ServerErrorResponse(w, r, err)
-	// 	return
-	// }
+	token, err := app.models.Tokens.New(identity.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		errs.ServerErrorResponse(w, r, err)
+		return
+	}
 
-	// helpers.RunInBackground(func() {
-	// 	data := map[string]any{
-	// 		"activationToken": token.Plaintext,
-	// 		"name":            user.Name,
-	// 	}
-	// 	// publish to rabbitMQ for mailer service to consume
-	// 	err = app.mailer.Send(user.Email, "user_welcome.tmpl", data)
-	// 	if err != nil {
-	// 		app.logger.Error(err.Error())
-	// 	}
-	// }, &app.wg)
+	helpers.RunInBackground(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		_, err = app.mailerClient.SendWelcomeEmail(ctx, &pb.WelcomeEmailRequest{
+			Recipient: identity.Email,
+			File:      "user_welcome.tmpl",
+			Data:      &pb.Data{Name: identity.Name, ActivationToken: token.Plaintext}})
+
+		if err != nil {
+			app.logger.Error(err.Error())
+		}
+	}, &app.wg)
 
 	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"identity": identity}, nil)
 }
