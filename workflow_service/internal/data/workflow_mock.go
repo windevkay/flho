@@ -6,6 +6,10 @@ func (w MockWorkflowModel) InsertWithTx(workflow *Workflow) error {
 	return nil
 }
 
+func (w MockWorkflowModel) GetIdentityId(uuid string) (int64, error) {
+	return 1, nil
+}
+
 func (w MockWorkflowModel) Get(id int64) (*Workflow, error) {
 	workflow := &Workflow{
 		Name: "mock_workflow",

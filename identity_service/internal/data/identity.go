@@ -19,6 +19,8 @@ type Identity struct {
 	ID        int64      `json:"id"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	UUID      string     `json:"-"`
 	Name      string     `json:"name"`
 	Email     string     `json:"email"`
 	Password  password   `json:"-"`
@@ -96,11 +98,11 @@ type IdentityModel struct {
 }
 
 func (i IdentityModel) Insert(identity *Identity) error {
-	query := `INSERT INTO identities (name, email, password_hash, activated)
-				VALUES ($1, $2, $3, $4)
+	query := `INSERT INTO identities (uuid, name, email, password_hash, activated)
+				VALUES ($1, $2, $3, $4, $5)
 				RETURNING id, created_at, updated_at, version`
 
-	args := []any{identity.Name, identity.Email, identity.Password.hash, identity.Activated}
+	args := []any{identity.UUID, identity.Name, identity.Email, identity.Password.hash, identity.Activated}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

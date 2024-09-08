@@ -12,6 +12,8 @@ import (
 	"github.com/windevkay/flho/identity_service/internal/data"
 	errs "github.com/windevkay/flhoutils/errors"
 	"github.com/windevkay/flhoutils/validator"
+
+	"github.com/google/uuid"
 )
 
 func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.Request) {
@@ -28,6 +30,7 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 	}
 
 	identity := &data.Identity{
+		UUID:      uuid.NewString(),
 		Name:      input.Name,
 		Email:     input.Email,
 		Activated: false,
