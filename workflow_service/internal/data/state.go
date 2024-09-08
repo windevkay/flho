@@ -10,6 +10,7 @@ type State struct {
 	ID         int64      `json:"-"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
 	WorkflowId int64      `json:"workflowId"`
 	Name       string     `json:"name"`
 	RetryUrl   string     `json:"retryUrl"`

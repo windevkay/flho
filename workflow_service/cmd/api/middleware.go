@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	identityContextKey = contextKey("identityId")
+	identityContextKey = contextKey("identityUUId")
 )
 
 type contextKey string
@@ -38,18 +38,18 @@ type metricsResponseWriter struct {
 	headerWritten bool
 }
 
-func (app *application) contextSetUser(r *http.Request, identityId int64) *http.Request {
-	ctx := context.WithValue(r.Context(), identityContextKey, identityId)
+func (app *application) contextSetUser(r *http.Request, identityUUId string) *http.Request {
+	ctx := context.WithValue(r.Context(), identityContextKey, identityUUId)
 	return r.WithContext(ctx)
 }
 
-func (app *application) contextGetUser(r *http.Request) int64 {
-	identityId, ok := r.Context().Value(identityContextKey).(int64)
+func (app *application) contextGetUser(r *http.Request) string {
+	identityUUId, ok := r.Context().Value(identityContextKey).(string)
 	if !ok {
-		panic("missing identityId value in request context")
+		panic("missing identityUUId value in request context")
 	}
 
-	return identityId
+	return identityUUId
 }
 
 func (app *application) validateJWTToken(token string) (*jwt.Claims, error) {
@@ -113,13 +113,7 @@ func (app *application) authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		identityId, err := strconv.ParseInt(claims.Subject, 10, 64)
-		if err != nil {
-			errs.ServerErrorResponse(w, r, err)
-			return
-		}
-
-		r = app.contextSetUser(r, identityId)
+		r = app.contextSetUser(r, claims.Subject)
 
 		next.ServeHTTP(w, r)
 	})

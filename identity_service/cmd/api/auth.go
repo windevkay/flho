@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/pascaldekloe/jwt"
@@ -67,7 +66,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 
 	// fetch private key needed for token creation
-	privKeyPath := filepath.Join(".", "keys", "ec_private_key.pem")
+	privKeyPath := filepath.Join("./infra", "keys", "ec_private_key.pem")
 	privPem, err := os.ReadFile(privKeyPath)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
@@ -81,7 +80,7 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 	}
 
 	var claims jwt.Claims
-	claims.Subject = strconv.FormatInt(identity.ID, 10)
+	claims.Subject = identity.UUID
 	claims.Issued = jwt.NewNumericTime(time.Now())
 	claims.NotBefore = jwt.NewNumericTime(time.Now())
 	claims.Expires = jwt.NewNumericTime(time.Now().Add(24 * time.Hour))
