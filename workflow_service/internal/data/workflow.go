@@ -30,7 +30,6 @@ func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 
 type WorkflowModelInterface interface {
 	InsertWithTx(workflow *Workflow) error
-	GetIdentityId(uuid string) (int64, error)
 	Get(id int64) (*Workflow, error)
 	GetAll(identityId int64, filters Filters) ([]*Workflow, Metadata, error)
 	Update(workflow *Workflow) error
@@ -87,22 +86,6 @@ func (w WorkflowModel) InsertWithTx(workflow *Workflow) error {
 	}
 
 	return nil
-}
-
-func (w WorkflowModel) GetIdentityId(uuid string) (int64, error) {
-	query := `SELECT id FROM workflow_identity_identities WHERE uuid = $1`
-
-	var id int64
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	err := w.DB.QueryRowContext(ctx, query, uuid).Scan(&id)
-	if err != nil {
-		return -1, err
-	}
-
-	return id, nil
 }
 
 func (w WorkflowModel) Get(id int64) (*Workflow, error) {

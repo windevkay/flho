@@ -25,7 +25,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 
 	v := validator.New()
 
-	identityId, err := app.models.Workflows.GetIdentityId(app.contextGetUser(r))
+	identityId, err := app.models.Identities.GetIdentityId(app.contextGetUser(r))
 	if err != nil || identityId <= 0 {
 		errs.ServerErrorResponse(w, r, err)
 		return

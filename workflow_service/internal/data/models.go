@@ -11,14 +11,16 @@ var (
 )
 
 type Models struct {
-	Workflows WorkflowModelInterface
-	States    StateModelInterface
+	Workflows  WorkflowModelInterface
+	States     StateModelInterface
+	Identities IdentityModelInterface
 }
 
 func GetModels(db *sql.DB) Models {
 	return Models{
-		Workflows: WorkflowModel{DB: db},
-		States:    StateModel{DB: db},
+		Workflows:  WorkflowModel{DB: db},
+		States:     StateModel{DB: db},
+		Identities: IdentityModel{DB: db},
 	}
 }
 
