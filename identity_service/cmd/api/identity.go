@@ -61,6 +61,12 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// publish event
+	err = sendQueueMessage(app.mqChannel, identity, "identity", "create")
+	if err != nil {
+		app.logger.Error(err.Error())
+	}
+
 	// generate user activation token
 	token, err := app.models.Tokens.New(identity.ID, 3*24*time.Hour, data.ScopeActivation)
 	if err != nil {
@@ -68,6 +74,7 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// send welcome email
 	helpers.RunInBackground(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()

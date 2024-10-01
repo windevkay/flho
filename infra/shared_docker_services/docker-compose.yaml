@@ -1,0 +1,16 @@
+services:
+  # SHARED SERVICES
+
+  # Message Broker
+  rabbit-mq:
+    image: 'rabbitmq:4.0-management'
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}

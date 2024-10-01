@@ -14,6 +14,8 @@ services:
       replicas: 1
     environment:
       DB_DSN: ${DB_DSN}
+      MAILER_SERVER: ${MAILER_SERVER}
+      MESSAGE_QUEUE_SERVER: ${MESSAGE_QUEUE_SERVER}
   # Database
   identity-service-database:
     image: 'postgres:14.2'
