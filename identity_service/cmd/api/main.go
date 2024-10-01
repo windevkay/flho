@@ -1,21 +1,17 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"expvar"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"runtime"
 	"sync"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	pb "github.com/windevkay/flho/mailer_service/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	_ "github.com/lib/pq"
 	"github.com/windevkay/flho/identity_service/internal/data"
@@ -30,6 +26,7 @@ type config struct {
 	port              int
 	env               string
 	mailerServiceAddr string
+	messageQueueAddr  string
 	db                struct {
 		dsn          string
 		maxOpenConns int
@@ -46,6 +43,7 @@ type config struct {
 type application struct {
 	config       config
 	logger       *slog.Logger
+	mqChannel    *amqp.Channel
 	models       data.Models
 	mailerClient pb.MailerClient
 	wg           sync.WaitGroup
@@ -58,7 +56,10 @@ func main() {
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
 	// gRPC servers
-	flag.StringVar(&cfg.mailerServiceAddr, "mailer server", "mailer-service:4001", "Mailer service address")
+	flag.StringVar(&cfg.mailerServiceAddr, "mailer-server", "", "Mailer service address")
+
+	// message queue connection string
+	flag.StringVar(&cfg.messageQueueAddr, "message-queue-server", "", "Message queue address")
 
 	// db connection and db pool settings flags
 	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
@@ -83,6 +84,7 @@ func main() {
 	// provide a structured logger for the application
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	// connect to primary datastore - postgres
 	db, err := openDB(cfg)
 	if err != nil {
 		logger.Error(err.Error())
@@ -107,6 +109,31 @@ func main() {
 
 	logger.Info("gRPC connections have been established")
 
+	// connect to message queue - rabbitmq
+	amqpConn, err := connectToMessageQueue(cfg)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	defer amqpConn.Close()
+
+	ch, err := amqpConn.Channel()
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	defer ch.Close()
+
+	// setup message exchanges and queues
+	err = setupMessageQueues(ch)
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	logger.Info("AMQP connection has been established")
+
 	// metrics
 	expvar.NewString("version").Set(version)
 
@@ -127,6 +154,7 @@ func main() {
 		logger:       logger,
 		models:       data.GetModels(db),
 		mailerClient: mailerClient,
+		mqChannel:    ch,
 	}
 
 	err = app.serve()
@@ -134,46 +162,4 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
-}
-
-func openDB(cfg config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxOpenConns(cfg.db.maxOpenConns)
-	db.SetConnMaxIdleTime(cfg.db.maxIdleTime)
-	db.SetMaxIdleConns(cfg.db.maxIdleConns)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	return db, nil
-}
-
-func connectToMailerServer(cfg config) (*grpc.ClientConn, error) {
-	var conn *grpc.ClientConn
-	var err error
-
-	maxRetries := 5
-	initialBackoff := time.Second
-
-	for i := 0; i < maxRetries; i++ {
-		conn, err = grpc.NewClient(cfg.mailerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err == nil {
-			return conn, nil
-		}
-
-		log.Printf("Failed to connect to mailer server (attempt %d/%d): %v", i+1, maxRetries, err)
-		time.Sleep(initialBackoff * (1 << i)) // Exponential backoff
-	}
-
-	return nil, err
 }
