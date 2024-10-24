@@ -62,7 +62,7 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 	}
 
 	// publish event
-	err = sendQueueMessage(app.mqChannel, identity, "identity", "create")
+	err = app.sendQueueMessage(identity, "identity", "create")
 	if err != nil {
 		app.logger.Error(err.Error())
 	}

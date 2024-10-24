@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+
+	"github.com/windevkay/flhoutils/helpers"
 )
 
 const (
@@ -117,7 +120,7 @@ func setupMessageQueues(ch *amqp.Channel) error {
 // Returns:
 //
 //	error: An error if the message could not be serialized or published, otherwise nil.
-func sendQueueMessage[T any](ch *amqp.Channel, message T, entityName string, action string) error {
+func (app *application) sendQueueMessage(message any, entityName string, action string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -126,13 +129,16 @@ func sendQueueMessage[T any](ch *amqp.Channel, message T, entityName string, act
 		return fmt.Errorf("failed to serialize message: %w", err)
 	}
 
-	err = ch.PublishWithContext(
+	err = app.mqChannel.PublishWithContext(
 		ctx,
 		serviceExchange,
 		fmt.Sprintf("%s.%s.%s", serviceExchange, entityName, action), // routing key e.g. identity_service_exchange.token.create
 		false,
 		false,
 		amqp.Publishing{
+			Headers: amqp.Table{
+				"source_exchange": serviceExchange,
+			},
 			ContentType: "text/plain",
 			Body:        body,
 		},
@@ -140,5 +146,29 @@ func sendQueueMessage[T any](ch *amqp.Channel, message T, entityName string, act
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (app *application) listenToMsgQueue() error {
+	msgs, err := app.mqChannel.Consume(
+		serviceQueue,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	helpers.RunInBackground(func() {
+		for d := range msgs {
+			log.Println(d.Body)
+		}
+	}, &app.wg)
+
 	return nil
 }
