@@ -30,6 +30,10 @@ func (app *application) serve() error {
 		s := <-quit
 		app.logger.Info("intercepted signal", "signal", s.String())
 
+		// close message queue channel
+		app.mqChannel.Close()
+
+		// begin timed server shutdown
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 

@@ -123,7 +123,6 @@ func main() {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
-	defer ch.Close()
 
 	// setup message exchanges and queues
 	err = setupMessageQueues(ch)
@@ -157,6 +156,13 @@ func main() {
 		mqChannel:    ch,
 	}
 
+	// listen for messages from event queue
+	err = app.listenToMsgQueue()
+	if err != nil {
+		logger.Error(err.Error())
+	}
+
+	// start http server
 	err = app.serve()
 	if err != nil {
 		logger.Error(err.Error())

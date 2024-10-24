@@ -15,7 +15,7 @@ type IdentityModel struct {
 }
 
 func (i IdentityModel) GetIdentityId(uuid string) (int64, error) {
-	query := `SELECT id FROM workflow_identity_identities WHERE uuid = $1`
+	query := `SELECT id FROM identities WHERE uuid = $1`
 
 	var id int64
 
