@@ -149,26 +149,32 @@ func (app *application) sendQueueMessage(message any, entityName string, action 
 	return nil
 }
 
-func (app *application) listenToMsgQueue() error {
-	msgs, err := app.mqChannel.Consume(
-		serviceQueue,
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-
-	if err != nil {
-		return err
-	}
-
+func (app *application) listenToMsgQueue() {
 	helpers.RunInBackground(func() {
+		msgs, err := app.mqChannel.Consume(
+			serviceQueue,
+			"",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+
+		if err != nil {
+			app.logger.Error(err.Error())
+			return
+		}
+
 		for d := range msgs {
-			log.Println(d.Body)
+			source := d.Headers["source_exchange"]
+			routingKey := d.RoutingKey
+
+			switch {
+			case source == "workflow_service_exchange":
+				// we should really just pass the routing key to an appropriate handler here
+				log.Print(routingKey)
+			}
 		}
 	}, &app.wg)
-
-	return nil
 }
