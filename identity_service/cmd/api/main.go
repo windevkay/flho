@@ -157,10 +157,7 @@ func main() {
 	}
 
 	// listen for messages from event queue
-	err = app.listenToMsgQueue()
-	if err != nil {
-		logger.Error(err.Error())
-	}
+	app.listenToMsgQueue()
 
 	// start http server
 	err = app.serve()
