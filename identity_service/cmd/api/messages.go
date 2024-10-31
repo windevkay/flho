@@ -162,7 +162,7 @@ func (app *application) listenToMsgQueue() {
 		)
 
 		if err != nil {
-			app.logger.Error(err.Error())
+			app.logger.Error(fmt.Sprintf("Failed to start consuming messages: %v", err))
 			return
 		}
 
@@ -170,10 +170,12 @@ func (app *application) listenToMsgQueue() {
 			source := d.Headers["source_exchange"]
 			routingKey := d.RoutingKey
 
-			switch {
-			case source == "workflow_service_exchange":
+			switch source {
+			case "workflow_service_exchange":
 				// we should really just pass the routing key to an appropriate handler here
 				log.Print(routingKey)
+			default:
+				app.logger.Warn(fmt.Sprintf("Unhandled source exchange: %v", source))
 			}
 		}
 	}, &app.wg)
