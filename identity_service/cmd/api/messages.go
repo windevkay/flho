@@ -60,6 +60,15 @@ func setupServiceExchange(ch *amqp.Channel) error {
 	return nil
 }
 
+// setupExternalExchanges sets up the external exchanges and binds the service queue to the events
+// from these exchanges. It declares the external exchanges and creates queue bindings for each event
+// specified in the externalExchanges list.
+//
+// Parameters:
+// - ch: The AMQP channel used to declare exchanges and bind queues.
+//
+// Returns:
+// - error: An error if any exchange declaration or queue binding fails, otherwise nil.
 func setupExternalExchanges(ch *amqp.Channel) error {
 	q, err := ch.QueueDeclare(serviceQueue, false, false, true, false, nil)
 	if err != nil {
@@ -149,6 +158,20 @@ func (app *application) sendQueueMessage(message any, entityName string, action 
 	return nil
 }
 
+// listenToMsgQueue listens to the message queue and processes incoming messages.
+// It runs in a background goroutine and consumes messages from the specified service queue.
+// Depending on the source exchange of the message, it routes the message to the appropriate handler.
+// If the source exchange is not recognized, it logs a warning.
+//
+// The function uses the following parameters for consuming messages:
+// - serviceQueue: The name of the queue to consume messages from.
+// - autoAck: Automatic acknowledgment mode (set to true).
+// - exclusive: Exclusive consumer mode (set to false).
+// - noLocal: No local flag (set to false).
+// - noWait: No wait flag (set to false).
+// - args: Additional arguments for the consume method (set to nil).
+//
+// If an error occurs while starting to consume messages, it logs the error and returns.
 func (app *application) listenToMsgQueue() {
 	helpers.RunInBackground(func() {
 		msgs, err := app.mqChannel.Consume(
