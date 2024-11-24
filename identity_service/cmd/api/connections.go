@@ -14,7 +14,7 @@ import (
 
 type connectFunc func() (any, error)
 
-func openDB(cfg config) (*sql.DB, error) {
+func openDB(cfg appConfig) (*sql.DB, error) {
 	db, err := sql.Open("postgres", cfg.db.dsn)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func connectWithRetry(connect connectFunc, maxRetries int, initialBackoff time.D
 	return nil, err
 }
 
-func connectToMessageQueue(cfg config) (*amqp.Connection, error) {
+func connectToMessageQueue(cfg appConfig) (*amqp.Connection, error) {
 	connect := func() (any, error) {
 		return amqp.Dial(cfg.messageQueueAddr)
 	}
@@ -66,7 +66,7 @@ func connectToMessageQueue(cfg config) (*amqp.Connection, error) {
 	return conn.(*amqp.Connection), nil
 }
 
-func connectToMailerServer(cfg config) (*grpc.ClientConn, error) {
+func connectToMailerServer(cfg appConfig) (*grpc.ClientConn, error) {
 	connect := func() (any, error) {
 		return grpc.NewClient(cfg.mailerServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
