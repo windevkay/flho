@@ -9,6 +9,8 @@ SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 source "$SCRIPT_DIR/config.cfg"
 
 start(){
+    # start shared services first
+    docker-compose -f ../../infra/shared_docker_services/docker-compose.yaml up
     for service in "${services[@]}"; do
         cd "$service"
         make run/api
@@ -22,6 +24,8 @@ stop(){
         make down
         cd ..
     done
+    # stop shared services
+    docker-compose -f ../../infra/shared_docker_services/docker-compose.yaml down
 }
 
 if [ "$1" == "-start" ]; then

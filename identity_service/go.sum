@@ -16,6 +16,8 @@ github.com/windevkay/flho/mailer_service v0.0.0-20240828150443-96db676d7f91 h1:s
 github.com/windevkay/flho/mailer_service v0.0.0-20240828150443-96db676d7f91/go.mod h1:BdW28U4Z/7QEnqNsIndl7PnHfLVBZX+xizEUNSWv0pg=
 github.com/windevkay/flhoutils v1.0.0 h1:fHJHJOfO6KvWca6wBNjPr7GZzpzcNyHwtDvQDj5kJI8=
 github.com/windevkay/flhoutils v1.0.0/go.mod h1:Jf9kYrYJpT2Ook0b7QtqHUZr9TdNjplK29P77lUxhUk=
+go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
+go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 golang.org/x/crypto v0.24.0 h1:mnl8DM0o513X8fdIkmyFE/5hTYxbwYOjDS/+rK6qpRI=
 golang.org/x/crypto v0.24.0/go.mod h1:Z1PMYSOR5nyMcyAVAIQSKCDwalqy85Aqn1x3Ws4L5DM=
 golang.org/x/net v0.26.0 h1:soB7SVo0PWrY4vPW/+ay0jKDNScG2X9wFeYlXIvJsOQ=

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/windevkay/flhoutils/helpers"
 
+	"github.com/windevkay/flho/identity_service/internal/data"
 	"github.com/windevkay/flho/identity_service/internal/services"
 	errs "github.com/windevkay/flhoutils/errors"
 )
@@ -19,9 +21,16 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 	}
 
 	is := services.NewIdentityService(identityServiceConfig)
-	identity, err := is.RegisterIdentity(input, w, r)
+	identity, err := is.RegisterIdentity(input)
 	if err != nil {
-		app.logger.Error(err.Error())
+		switch {
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrDuplicateEmail):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
+		default:
+			errs.ServerErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -38,9 +47,18 @@ func (app *application) activateIdentityHandler(w http.ResponseWriter, r *http.R
 	}
 
 	is := services.NewIdentityService(identityServiceConfig)
-	identity, err := is.ActivateIdentity(input, w, r)
+	identity, err := is.ActivateIdentity(input)
 	if err != nil {
-		app.logger.Error(err.Error())
+		switch {
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrRecordNotFound):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
+		case errors.Is(err, data.ErrEditConflict):
+			errs.EditConflictResponse(w, r)
+		default:
+			errs.ServerErrorResponse(w, r, err)
+		}
 		return
 	}
 

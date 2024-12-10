@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
-	"net/http"
 	"sync"
 	"time"
 
@@ -14,7 +14,6 @@ import (
 	"github.com/windevkay/flho/identity_service/internal/queue"
 	"github.com/windevkay/flho/identity_service/internal/rpc"
 	pb "github.com/windevkay/flho/mailer_service/proto"
-	errs "github.com/windevkay/flhoutils/errors"
 	"github.com/windevkay/flhoutils/helpers"
 	"github.com/windevkay/flhoutils/validator"
 )
@@ -41,13 +40,20 @@ type ActivateIdentityInput struct {
 	TokenPlaintext string `json:"token"`
 }
 
+type ValidationErr struct {
+	Err    error
+	Fields map[string]string
+}
+
+func (c *ValidationErr) Error() string { return "validation error" }
+
 func NewIdentityService(config *IdentityServiceConfig) *IdentityService {
 	return &IdentityService{
 		config: config,
 	}
 }
 
-func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput, w http.ResponseWriter, r *http.Request) (*data.Identity, error) {
+func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput) (*data.Identity, error) {
 	identity := &data.Identity{
 		UUID:      uuid.NewString(),
 		Name:      input.Name,
@@ -57,25 +63,23 @@ func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput, w http.R
 
 	err := identity.Password.Set(input.Password)
 	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
+		i.config.Logger.Error(err.Error())
 		return nil, err
 	}
 
 	v := validator.New()
 
 	if data.ValidateIdentity(v, identity); !v.Valid() {
-		errs.FailedValidationResponse(w, r, v.Errors)
-		return nil, err
+		i.config.Logger.Error(fmt.Sprintf("validation failed: register identity - %v", v.Errors))
+		return nil, &ValidationErr{Err: data.ErrValidationFailed, Fields: v.Errors}
 	}
 
 	err = i.config.Models.Identities.Insert(identity)
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrDuplicateEmail):
+		i.config.Logger.Error(err.Error())
+		if errors.Is(err, data.ErrDuplicateEmail) {
 			v.AddError("email", "address already in use")
-			errs.FailedValidationResponse(w, r, v.Errors)
-		default:
-			errs.ServerErrorResponse(w, r, err)
+			return nil, &ValidationErr{Err: data.ErrDuplicateEmail, Fields: v.Errors}
 		}
 		return nil, err
 	}
@@ -89,7 +93,7 @@ func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput, w http.R
 	// generate user activation token
 	token, err := i.config.Models.Tokens.New(identity.ID, 3*24*time.Hour, data.ScopeActivation)
 	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
+		i.config.Logger.Error(err.Error())
 		return nil, err
 	}
 
@@ -111,22 +115,20 @@ func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput, w http.R
 	return identity, err
 }
 
-func (i *IdentityService) ActivateIdentity(input ActivateIdentityInput, w http.ResponseWriter, r *http.Request) (*data.Identity, error) {
+func (i *IdentityService) ActivateIdentity(input ActivateIdentityInput) (*data.Identity, error) {
 	v := validator.New()
 
 	if data.ValidateTokenPlaintext(v, input.TokenPlaintext); !v.Valid() {
-		errs.FailedValidationResponse(w, r, v.Errors)
-		return nil, errors.New("validation failed")
+		i.config.Logger.Error(fmt.Sprintf("validation failed: activate identity - %v", v.Errors))
+		return nil, &ValidationErr{Err: data.ErrValidationFailed, Fields: v.Errors}
 	}
 
 	identity, err := i.config.Models.Identities.GetIdentityForToken(data.ScopeActivation, input.TokenPlaintext)
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
+		i.config.Logger.Error(err.Error())
+		if errors.Is(err, data.ErrRecordNotFound) {
 			v.AddError("token", "invalid or expired activation token")
-			errs.FailedValidationResponse(w, r, v.Errors)
-		default:
-			errs.ServerErrorResponse(w, r, err)
+			return nil, &ValidationErr{Err: data.ErrRecordNotFound, Fields: v.Errors}
 		}
 		return nil, err
 	}
@@ -135,18 +137,12 @@ func (i *IdentityService) ActivateIdentity(input ActivateIdentityInput, w http.R
 
 	err = i.config.Models.Identities.Update(identity)
 	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrEditConflict):
-			errs.EditConflictResponse(w, r)
-		default:
-			errs.ServerErrorResponse(w, r, err)
-		}
 		return nil, err
 	}
 
 	err = i.config.Models.Tokens.DeleteScopeTokensForIdentity(data.ScopeActivation, identity.ID)
 	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
+		i.config.Logger.Error(err.Error())
 		return nil, err
 	}
 

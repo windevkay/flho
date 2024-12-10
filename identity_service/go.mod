@@ -14,13 +14,13 @@ require golang.org/x/crypto v0.24.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/pascaldekloe/jwt v1.12.0
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/windevkay/flho/mailer_service v0.0.0-20240828150443-96db676d7f91
 	google.golang.org/grpc v1.66.0
 )
 
 require (
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/text v0.16.0 // indirect

@@ -192,7 +192,6 @@ func publishMetrics(db *sql.DB) {
 // for various services. It sets up the necessary dependencies such as models,
 // RPC clients, message queue channel, wait group, and logger for the service.
 func (app *application) registerServiceConfigs() {
-	// register identity service configs
 	identityServiceConfig = &services.IdentityServiceConfig{
 		Models:    app.models,
 		Rpclients: app.rpc,

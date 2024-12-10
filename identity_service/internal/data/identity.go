@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrDuplicateEmail = errors.New("duplicate email")
+	ErrDuplicateEmail   = errors.New("duplicate email")
+	ErrValidationFailed = errors.New("validation failed")
 )
 
 type Identity struct {

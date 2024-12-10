@@ -21,7 +21,7 @@ shift $((OPTIND-1))
 
 # Helpers
 setup_folders(){
-    mkdir bin cmd docker cmd/api internal internal/data internal/vcs
+    mkdir bin cmd .docker cmd/api internal internal/data internal/vcs
     touch cmd/api/main.go
 
     touch internal/vcs/vcs.go
