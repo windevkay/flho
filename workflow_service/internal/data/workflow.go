@@ -22,6 +22,10 @@ type Workflow struct {
 	Version    int32      `json:"version"`
 }
 
+var (
+	ErrValidationFailed = errors.New("validation failed")
+)
+
 func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 	v.Check(w.Name != "", "name", "must be provided")
 

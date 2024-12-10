@@ -12,11 +12,11 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"github.com/windevkay/flho/identity_service/internal/data"
-	"github.com/windevkay/flho/identity_service/internal/queue"
-	"github.com/windevkay/flho/identity_service/internal/rpc"
-	"github.com/windevkay/flho/identity_service/internal/services"
-	"github.com/windevkay/flho/identity_service/internal/vcs"
+	"github.com/windevkay/flho/workflow_service/internal/data"
+	"github.com/windevkay/flho/workflow_service/internal/queue"
+	"github.com/windevkay/flho/workflow_service/internal/rpc"
+	"github.com/windevkay/flho/workflow_service/internal/services"
+	"github.com/windevkay/flho/workflow_service/internal/vcs"
 )
 
 type application struct {
@@ -56,7 +56,7 @@ type appConnections struct {
 var (
 	cfg                   appConfig
 	logger                = slog.New(slog.NewTextHandler(os.Stdout, nil))
-	identityServiceConfig *services.IdentityServiceConfig
+	workflowServiceConfig *services.WorkflowServiceConfig
 	version               = vcs.Version()
 )
 
@@ -192,7 +192,7 @@ func publishMetrics(db *sql.DB) {
 // for various services. It sets up the necessary dependencies such as models,
 // RPC clients, message queue channel, wait group, and logger for the service.
 func (app *application) registerServiceConfigs() {
-	identityServiceConfig = &services.IdentityServiceConfig{
+	workflowServiceConfig = &services.WorkflowServiceConfig{
 		Models:    app.models,
 		Rpclients: app.rpc,
 		Channel:   app.mqChannel,

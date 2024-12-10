@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func (app *application) serve() error {
+func (app *application) serveGRPC() error {
 
 	srv, err := net.Listen("tcp", fmt.Sprintf(":%d", app.config.port))
 	if err != nil {
