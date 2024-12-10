@@ -6,16 +6,13 @@ import (
 	"net/http"
 
 	"github.com/windevkay/flho/workflow_service/internal/data"
+	"github.com/windevkay/flho/workflow_service/internal/services"
 	errs "github.com/windevkay/flhoutils/errors"
 	"github.com/windevkay/flhoutils/helpers"
-	"github.com/windevkay/flhoutils/validator"
 )
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Name   string       `json:"name"`
-		States []data.State `json:"states"`
-	}
+	var input services.CreateWorkflowInput
 
 	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
@@ -23,30 +20,15 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	v := validator.New()
-
-	identityId, err := app.models.Identities.GetIdentityId(app.contextGetUser(r))
-	if err != nil || identityId <= 0 {
-		errs.ServerErrorResponse(w, r, err)
-		return
-	}
-
-	workflow := &data.Workflow{
-		IdentityId: identityId,
-		UniqueID:   helpers.GenerateUniqueId(15),
-		Name:       input.Name,
-		States:     input.States,
-		Active:     true,
-	}
-
-	if data.ValidateWorkflow(v, workflow); !v.Valid() {
-		errs.FailedValidationResponse(w, r, v.Errors)
-		return
-	}
-
-	err = app.models.Workflows.InsertWithTx(workflow)
+	ws := services.NewWorkflowService(workflowServiceConfig)
+	workflow, err := ws.CreateWorkflow(input, app.contextGetUser(r))
 	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
+		default:
+			errs.ServerErrorResponse(w, r, err)
+		}
 		return
 	}
 
@@ -64,7 +46,8 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	workflow, err := app.models.Workflows.Get(id)
+	ws := services.NewWorkflowService(workflowServiceConfig)
+	workflow, err := ws.ShowWorkflow(id)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -78,14 +61,6 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 	helpers.WriteJSON(w, http.StatusOK, helpers.Envelope{"workflow": workflow}, nil)
 }
 
-func fullOrPartialUpdate(workflow *data.Workflow, input *struct {
-	Name *string `json:"name"`
-}) {
-	if input.Name != nil {
-		workflow.Name = *input.Name
-	}
-}
-
 func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := helpers.ReadIDParam(r)
 	if err != nil {
@@ -93,20 +68,7 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	workflow, err := app.models.Workflows.Get(id)
-	if err != nil {
-		switch {
-		case errors.Is(err, data.ErrRecordNotFound):
-			errs.NotFoundResponse(w, r)
-		default:
-			errs.ServerErrorResponse(w, r, err)
-		}
-		return
-	}
-
-	var input struct {
-		Name *string `json:"name"`
-	}
+	var input services.UpdateInput
 
 	err = helpers.ReadJSON(w, r, &input)
 	if err != nil {
@@ -114,25 +76,19 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// achieve full or partial updates using non nil values
-	fullOrPartialUpdate(workflow, &input)
-
-	v := validator.New()
-
-	if data.ValidateWorkflow(v, workflow); !v.Valid() {
-		errs.FailedValidationResponse(w, r, v.Errors)
-		return
-	}
-
-	err = app.models.Workflows.Update(workflow)
+	ws := services.NewWorkflowService(workflowServiceConfig)
+	workflow, err := ws.UpdateWorkflow(id, input)
 	if err != nil {
 		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			errs.NotFoundResponse(w, r)
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
 		case errors.Is(err, data.ErrEditConflict):
 			errs.EditConflictResponse(w, r)
 		default:
 			errs.ServerErrorResponse(w, r, err)
 		}
-
 		return
 	}
 
@@ -146,7 +102,8 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = app.models.Workflows.Delete(id)
+	ws := services.NewWorkflowService(workflowServiceConfig)
+	err = ws.DeleteWorkflow(id)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -161,10 +118,7 @@ func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Page     int `json:"page"`
-		PageSize int `json:"pageSize"`
-	}
+	var input services.ListWorkflowInput
 
 	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
@@ -172,23 +126,15 @@ func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	v := validator.New()
-
-	filter := data.Filters{
-		Page:         input.Page,
-		PageSize:     input.PageSize,
-		Sort:         "-id",
-		SortSafeList: []string{"id", "name", "-id", "-name"},
-	}
-
-	if data.ValidateFilters(v, filter); !v.Valid() {
-		errs.FailedValidationResponse(w, r, v.Errors)
-		return
-	}
-
-	workflows, metadata, err := app.models.Workflows.GetAll(1, filter)
+	ws := services.NewWorkflowService(workflowServiceConfig)
+	workflows, metadata, err := ws.ListWorkflows(input)
 	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
+		switch {
+		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
+			errs.FailedValidationResponse(w, r, err.(*services.ValidationErr).Fields)
+		default:
+			errs.ServerErrorResponse(w, r, err)
+		}
 		return
 	}
 
