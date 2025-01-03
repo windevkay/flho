@@ -21,7 +21,7 @@ type Metadata struct {
 	TotalRecords int `json:"total_records,omitempty"`
 }
 
-func (f Filters) sortColumn() string {
+func (f Filters) sortField() string {
 	for _, safeValue := range f.SortSafeList {
 		if f.Sort == safeValue {
 			return strings.TrimPrefix(f.Sort, "-")
@@ -43,7 +43,7 @@ func (f Filters) limit() int {
 	return f.PageSize
 }
 
-func (f Filters) offest() int {
+func (f Filters) offset() int {
 	return (f.Page - 1) * f.PageSize
 }
 

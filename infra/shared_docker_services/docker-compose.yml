@@ -1,9 +1,7 @@
 services:
-  # SHARED SERVICES
-
   # Message Broker
   rabbit-mq:
-    image: 'rabbitmq:4.0-management'
+    image: rabbitmq:4.0-management
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -16,6 +14,6 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
   # Cache
   redis:
-    image: "redis:8.0-M02-alpine"
+    image: redis:8.0-M02-alpine
     ports:
       - "6379:6379"

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/windevkay/flho/mailer_service/internal/vcs"
@@ -35,7 +35,7 @@ var (
 	version = vcs.Version()
 )
 
-// loadAppConfig loads the application configuration from command-line flags.
+// loadAppConfig loads the application configuration from environment variables.
 // It sets the following configuration options:
 // - API server port (default: 4000)
 // - Environment (development, staging, production; default: development)
@@ -44,25 +44,44 @@ var (
 // - SMTP username
 // - SMTP password
 // - SMTP sender (default: "FLHO <no-reply@flho.dev>")
-// Additionally, it provides a flag to display the version and exit the program.
+// Additionally, it provides an option to display the version and exit the program.
 func loadAppConfig() {
-	// environment flags
-	flag.IntVar(&cfg.port, "port", 4000, "API server port")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	cfg.port = getEnvAsInt("PORT", 4000)
+	cfg.env = getEnv("ENV", "development")
+	cfg.smtp.host = getEnv("SMTP_HOST", "")
+	cfg.smtp.port = getEnvAsInt("SMTP_PORT", 25)
+	cfg.smtp.username = getEnv("SMTP_USERNAME", "")
+	cfg.smtp.password = getEnv("SMTP_PASSWORD", "")
+	cfg.smtp.sender = getEnv("SMTP_SENDER", "FLHO <no-reply@flho.dev>")
 
-	// smtp flags
-	flag.StringVar(&cfg.smtp.host, "smtp-host", "", "SMTP host")
-	flag.IntVar(&cfg.smtp.port, "smtp-port", 25, "SMTP port")
-	flag.StringVar(&cfg.smtp.username, "smtp-username", "", "SMTP username")
-	flag.StringVar(&cfg.smtp.password, "smtp-password", "", "SMTP password")
-	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "FLHO <no-reply@flho.dev>", "SMTP sender")
-
-	displayVersion := flag.Bool("version", false, "Display version and exit")
-
-	flag.Parse()
-
-	if *displayVersion {
+	if getEnvAsBool("VERSION", false) {
 		fmt.Printf("Version:\t%s\n", version)
 		os.Exit(0)
 	}
+}
+
+// getEnv reads an environment variable or returns a default value if not set.
+func getEnv(key string, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt reads an environment variable as an integer or returns a default value if not set.
+func getEnvAsInt(name string, defaultValue int) int {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsBool reads an environment variable as a boolean or returns a default value if not set.
+func getEnvAsBool(name string, defaultValue bool) bool {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.ParseBool(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
 }

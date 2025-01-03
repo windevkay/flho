@@ -1,35 +1,21 @@
 package main
 
 import (
+	"context"
 	"os"
 
-	_ "github.com/lib/pq"
 	"github.com/windevkay/flho/workflow_service/internal/data"
 	"github.com/windevkay/flho/workflow_service/internal/rpc"
 )
 
 func main() {
-	loadAppConfig()
+	app, connections := createApp()
 
-	connections, err := setupConnections()
-	if err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
-	}
-
-	defer connections.db.Close()
+	defer connections.db.Disconnect(context.Background())
 	defer connections.rpc.Close()
 	defer connections.amqp.Close()
 
 	publishMetrics(connections.db)
-
-	app := &application{
-		config:    cfg,
-		logger:    logger,
-		models:    data.GetModels(connections.db),
-		rpc:       rpc.GetClients(connections.rpc),
-		mqChannel: connections.amqpChannel,
-	}
 
 	// register service configs
 	app.registerServiceConfigs()
@@ -38,9 +24,29 @@ func main() {
 	app.serveQueue()
 
 	// start http server
-	err = app.serveHTTP()
+	err := app.serveHTTP()
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
+}
+
+func createApp() (*application, *appConnections) {
+	loadAppConfig()
+
+	connections, err := setupConnections()
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+
+	app := &application{
+		config:    cfg,
+		logger:    logger,
+		models:    data.GetModels(connections.db, cfg.db.database),
+		rpc:       rpc.GetClients(connections.rpc),
+		mqChannel: connections.amqpChannel,
+	}
+
+	return app, connections
 }

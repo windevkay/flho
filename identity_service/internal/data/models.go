@@ -1,8 +1,9 @@
 package data
 
 import (
-	"database/sql"
 	"errors"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -15,10 +16,10 @@ type Models struct {
 	Tokens     TokenModelInterface
 }
 
-func GetModels(db *sql.DB) Models {
+func GetModels(client *mongo.Client, dbName string) Models {
 	return Models{
-		Identities: IdentityModel{DB: db},
-		Tokens:     TokenModel{DB: db},
+		Identities: NewIdentityModel(client, dbName),
+		Tokens:     NewTokenModel(client, dbName),
 	}
 }
 

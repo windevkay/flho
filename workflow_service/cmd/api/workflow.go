@@ -5,11 +5,26 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/windevkay/flho/workflow_service/internal/data"
 	"github.com/windevkay/flho/workflow_service/internal/services"
 	errs "github.com/windevkay/flhoutils/errors"
 	"github.com/windevkay/flhoutils/helpers"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+// TODO: Move this into flhoutils lib
+func ReadObjectIDParam(r *http.Request) (primitive.ObjectID, error) {
+	params := httprouter.ParamsFromContext(r.Context())
+	idStr := params.ByName("id")
+
+	id, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		return primitive.NilObjectID, errors.New("invalid ID parameter")
+	}
+
+	return id, nil
+}
 
 func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var input services.CreateWorkflowInput
@@ -40,7 +55,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := helpers.ReadIDParam(r)
+	id, err := ReadObjectIDParam(r)
 	if err != nil {
 		errs.NotFoundResponse(w, r)
 		return
@@ -62,7 +77,7 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := helpers.ReadIDParam(r)
+	id, err := ReadObjectIDParam(r)
 	if err != nil {
 		errs.NotFoundResponse(w, r)
 		return
@@ -96,7 +111,7 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := helpers.ReadIDParam(r)
+	id, err := ReadObjectIDParam(r)
 	if err != nil {
 		errs.NotFoundResponse(w, r)
 		return
@@ -127,7 +142,7 @@ func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	ws := services.NewWorkflowService(workflowServiceConfig)
-	workflows, metadata, err := ws.ListWorkflows(input)
+	workflows, metadata, err := ws.ListWorkflows(input, app.contextGetUser(r))
 	if err != nil {
 		switch {
 		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
