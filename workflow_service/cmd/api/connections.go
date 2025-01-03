@@ -2,39 +2,18 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type connectFunc func() (any, error)
-
-func openDB(cfg appConfig) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.db.dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	db.SetMaxOpenConns(cfg.db.maxOpenConns)
-	db.SetConnMaxIdleTime(cfg.db.maxIdleTime)
-	db.SetMaxIdleConns(cfg.db.maxIdleConns)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	err = db.PingContext(ctx)
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-
-	return db, nil
-}
 
 func connectWithRetry(connect connectFunc, maxRetries int, initialBackoff time.Duration) (any, error) {
 	var conn any
@@ -51,6 +30,36 @@ func connectWithRetry(connect connectFunc, maxRetries int, initialBackoff time.D
 	}
 
 	return nil, err
+}
+
+func connectToDB(cfg appConfig) (*mongo.Client, error) {
+	connect := func() (any, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.db.connectTimeout)
+		defer cancel()
+
+		clientOpts := options.Client().
+			ApplyURI(cfg.db.uri).
+			SetMaxPoolSize(cfg.db.maxPoolSize)
+
+		return mongo.Connect(ctx, clientOpts)
+	}
+
+	conn, err := connectWithRetry(connect, 5, time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	client := conn.(*mongo.Client)
+
+	// Verify connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
 func connectToMessageQueue(cfg appConfig) (*amqp.Connection, error) {

@@ -1,7 +1,3 @@
-# Include variables from the .env file
-include .env
-
-
 # ==================================================================================== #
 # HELPERS
 # ==================================================================================== #
@@ -26,9 +22,9 @@ confirm:
 
 ## run/api: run the cmd/api application
 .PHONY: run/api
-run/api: build/api
+run/api:
 	@echo 'Running Docker Compose'
-	docker compose -f docker-compose.yaml up --build -d
+	docker compose -f docker-compose.yml up --build -d
 	@echo 'Docker images started!'
 
 
@@ -36,28 +32,8 @@ run/api: build/api
 .PHONY: down
 down:
 	@echo 'Stopping docker compose...'
-	docker compose -f docker-compose.yaml down
+	docker compose -f docker-compose.yml down
 	@echo 'Done!'
-
-
-## db/psql: connect to the database using psql
-.PHONY: db/psql
-db/psql:
-	psql ${DB_DSN}
-
-
-## db/migrations/new name=$1: create a new database migration
-.PHONY: db/migrations/new
-db/migrations/new:
-	@echo 'Creating migration files for ${name}...'
-	migrate create -seq -ext=.sql -dir=./migrations ${name}
-
-
-## db/migrations/up: apply all up database migrations
-.PHONY: db/migrations/up
-db/migrations/up: confirm
-	@echo 'Running up migrations...'
-	migrate -path ./migrations -database ${DB_DSN} up
 
 
 # ==================================================================================== #
@@ -82,16 +58,3 @@ vendor:
 	go mod verify
 	@echo 'Vendoring dependencies...'
 	go mod vendor
-
-
-# ==================================================================================== #
-# BUILD
-# ==================================================================================== #
-
-
-## build/api: build the cmd/api application
-.PHONY: build/api
-build/api:
-	@echo 'Building cmd/api targetting 64 bit linux...'
-	GOOS=linux GOARCH=amd64 go build -ldflags='-s' -o=./bin/linux_amd64/api ./cmd/api
-	@echo 'Binary generation successful!'

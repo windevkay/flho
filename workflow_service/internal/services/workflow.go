@@ -10,6 +10,7 @@ import (
 	"github.com/windevkay/flho/workflow_service/internal/rpc"
 	"github.com/windevkay/flhoutils/helpers"
 	"github.com/windevkay/flhoutils/validator"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type WorkflowService struct {
@@ -55,7 +56,7 @@ func (ws *WorkflowService) CreateWorkflow(input CreateWorkflowInput, uuid string
 	v := validator.New()
 
 	identityId, err := ws.config.Models.Identities.GetIdentityId(uuid)
-	if err != nil || identityId <= 0 {
+	if err != nil || identityId == primitive.NilObjectID {
 		ws.config.Logger.Error(err.Error())
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func (ws *WorkflowService) CreateWorkflow(input CreateWorkflowInput, uuid string
 		return nil, &ValidationErr{Err: data.ErrValidationFailed, Fields: v.Errors}
 	}
 
-	err = ws.config.Models.Workflows.InsertWithTx(workflow)
+	err = ws.config.Models.Workflows.Insert(workflow)
 	if err != nil {
 		ws.config.Logger.Error(err.Error())
 		return nil, err
@@ -82,7 +83,7 @@ func (ws *WorkflowService) CreateWorkflow(input CreateWorkflowInput, uuid string
 	return workflow, nil
 }
 
-func (ws *WorkflowService) ShowWorkflow(id int64) (*data.Workflow, error) {
+func (ws *WorkflowService) ShowWorkflow(id primitive.ObjectID) (*data.Workflow, error) {
 	workflow, err := ws.config.Models.Workflows.Get(id)
 	if err != nil {
 		ws.config.Logger.Error(err.Error())
@@ -98,7 +99,7 @@ func fullOrPartialUpdate(workflow *data.Workflow, input *UpdateInput) {
 	}
 }
 
-func (ws *WorkflowService) UpdateWorkflow(id int64, input UpdateInput) (*data.Workflow, error) {
+func (ws *WorkflowService) UpdateWorkflow(id primitive.ObjectID, input UpdateInput) (*data.Workflow, error) {
 	workflow, err := ws.config.Models.Workflows.Get(id)
 	if err != nil {
 		ws.config.Logger.Error(err.Error())
@@ -124,11 +125,17 @@ func (ws *WorkflowService) UpdateWorkflow(id int64, input UpdateInput) (*data.Wo
 	return workflow, nil
 }
 
-func (ws *WorkflowService) DeleteWorkflow(id int64) error {
+func (ws *WorkflowService) DeleteWorkflow(id primitive.ObjectID) error {
 	return ws.config.Models.Workflows.Delete(id)
 }
 
-func (ws *WorkflowService) ListWorkflows(input ListWorkflowInput) ([]*data.Workflow, *data.Metadata, error) {
+func (ws *WorkflowService) ListWorkflows(input ListWorkflowInput, uuid string) ([]*data.Workflow, *data.Metadata, error) {
+	identityId, err := ws.config.Models.Identities.GetIdentityId(uuid)
+	if err != nil || identityId == primitive.NilObjectID {
+		ws.config.Logger.Error(err.Error())
+		return nil, nil, err
+	}
+
 	v := validator.New()
 
 	filter := data.Filters{
@@ -143,6 +150,6 @@ func (ws *WorkflowService) ListWorkflows(input ListWorkflowInput) ([]*data.Workf
 		return nil, nil, &ValidationErr{Err: data.ErrValidationFailed, Fields: v.Errors}
 	}
 
-	workflows, metadata, err := ws.config.Models.Workflows.GetAll(1, filter)
+	workflows, metadata, err := ws.config.Models.Workflows.GetAll(identityId, filter)
 	return workflows, &metadata, err
 }

@@ -2,24 +2,35 @@ package data
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/windevkay/flhoutils/validator"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type State struct {
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"-"`
+	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
+	Name       string             `bson:"name" json:"name"`
+	RetryUrl   string             `bson:"retryUrl" json:"retryUrl"`
+	RetryAfter Timeout            `bson:"retryAfter" json:"retryAfter"`
+}
+
 type Workflow struct {
-	ID         int64      `json:"id"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
-	IdentityId int64      `json:"identityId,omitempty"`
-	UniqueID   string     `json:"uniqueId"`
-	Name       string     `json:"name"`
-	States     []State    `json:"states"`
-	Active     bool       `json:"active"`
-	Version    int32      `json:"version"`
+	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
+	IdentityId primitive.ObjectID `bson:"identity_id" json:"identity_id"`
+	UniqueID   string             `bson:"uniqueId" json:"uniqueId"`
+	Name       string             `bson:"name" json:"name"`
+	States     []State            `bson:"states" json:"states"`
+	Active     bool               `bson:"active" json:"active"`
+	Version    int32              `bson:"version" json:"version"`
 }
 
 var (
@@ -28,234 +39,135 @@ var (
 
 func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 	v.Check(w.Name != "", "name", "must be provided")
-
-	v.Check(len(w.States) >= 2, "states", "must have atleast 2 values")
+	v.Check(len(w.States) >= 2, "states", "must have at least 2 values")
 }
 
 type WorkflowModelInterface interface {
-	InsertWithTx(workflow *Workflow) error
-	Get(id int64) (*Workflow, error)
-	GetAll(identityId int64, filters Filters) ([]*Workflow, Metadata, error)
+	Insert(workflow *Workflow) error
+	Get(id primitive.ObjectID) (*Workflow, error)
+	GetAll(identityId primitive.ObjectID, filters Filters) ([]*Workflow, Metadata, error)
 	Update(workflow *Workflow) error
-	Delete(id int64) error
+	Delete(id primitive.ObjectID) error
 }
 
 type WorkflowModel struct {
-	DB *sql.DB
+	Collection *mongo.Collection
 }
 
-func (w WorkflowModel) InsertWithTx(workflow *Workflow) error {
-	query := `INSERT INTO workflows (identity_id, uniqueid, name, active)
-				VALUES ($1, $2, $3, $4)
-				RETURNING id, created_at, updated_at, version`
+func NewWorkflowModel(client *mongo.Client, dbName string) WorkflowModel {
+	collection := client.Database(dbName).Collection("workflows")
+	return WorkflowModel{
+		Collection: collection,
+	}
+}
 
-	args := []any{workflow.IdentityId, workflow.UniqueID, workflow.Name, workflow.Active}
+func (w WorkflowModel) Insert(workflow *Workflow) error {
+	workflow.ID = primitive.NewObjectID()
+	workflow.CreatedAt = time.Now()
+	workflow.UpdatedAt = time.Now()
 
-	// db operations have 3 seconds max to resolve
+	for i := range workflow.States {
+		workflow.States[i].ID = primitive.NewObjectID()
+		workflow.States[i].CreatedAt = time.Now()
+		workflow.States[i].UpdatedAt = time.Now()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// Start a transaction using the context
-	tx, err := w.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
+	_, err := w.Collection.InsertOne(ctx, workflow)
 
-	// Ensure the transaction is rolled back in case of an error
-	defer tx.Rollback()
-
-	err = tx.QueryRow(query, args...).Scan(&workflow.ID, &workflow.CreatedAt, &workflow.UpdatedAt, &workflow.Version)
-	if err != nil {
-		return err
-	}
-
-	// insert states for workflow
-	for _, state := range workflow.States {
-		query := `INSERT INTO states (workflow_id, name, retryurl, retryafter)
-                    VALUES ($1, $2, $3, $4)
-                    RETURNING created_at`
-
-		args := []any{workflow.ID, state.Name, state.RetryUrl, state.RetryAfter}
-
-		err := tx.QueryRow(query, args...).Scan(&state.CreatedAt)
-		if err != nil {
-			return err
-		}
-	}
-
-	// commit the transaction
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func (w WorkflowModel) Get(id int64) (*Workflow, error) {
-	if id < 1 {
+func (w WorkflowModel) Get(id primitive.ObjectID) (*Workflow, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var workflow Workflow
+
+	err := w.Collection.FindOne(ctx, bson.M{"_id": id}).Decode(&workflow)
+	if err == mongo.ErrNoDocuments {
 		return nil, ErrRecordNotFound
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	query := `
-        SELECT 
-            w.id, w.uniqueid, w.name, w.active, w.created_at, w.updated_at, w.version,
-            s.id, s.name, s.retryurl, s.retryafter, s.created_at
-        FROM 
-            workflows w
-        LEFT JOIN 
-            states s ON w.id = s.workflow_id
-        WHERE 
-            w.id = $1`
-
-	rows, err := w.DB.QueryContext(ctx, query, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var workflow Workflow
-	workflow.States = []State{}
-
-	// Iterate over the rows
-	for rows.Next() {
-		var state State
-		err := rows.Scan(
-			&workflow.ID,
-			&workflow.UniqueID,
-			&workflow.Name,
-			&workflow.Active,
-			&workflow.CreatedAt,
-			&workflow.UpdatedAt,
-			&workflow.Version,
-			&state.ID,
-			&state.Name,
-			&state.RetryUrl,
-			&state.RetryAfter,
-			&state.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		workflow.States = append(workflow.States, state)
-	}
-
-	// Check for errors from iterating over rows
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return &workflow, nil
+	return &workflow, err
 }
 
-func (w WorkflowModel) GetAll(organizationId int64, filters Filters) ([]*Workflow, Metadata, error) {
-	query := fmt.Sprintf(`
-		SELECT count(*) OVER(), id, created_at, updated_at, uniqueid, name, active, version 
-		FROM workflows w
-		WHERE w.identity_id = $1
-		ORDER BY %s %s
-		LIMIT $2 OFFSET $3`, filters.sortColumn(), filters.sortDirection())
-
+func (w WorkflowModel) GetAll(identityId primitive.ObjectID, filters Filters) ([]*Workflow, Metadata, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{organizationId, filters.limit(), filters.offest()}
+	filter := bson.M{"identity_id": identityId}
+	opts := options.Find().
+		SetSort(bson.D{{Key: filters.sortField(), Value: filters.sortDirection()}}).
+		SetLimit(int64(filters.limit())).
+		SetSkip(int64(filters.offset()))
 
-	rows, err := w.DB.QueryContext(ctx, query, args...)
+	cursor, err := w.Collection.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, Metadata{}, err
 	}
 
-	defer rows.Close()
+	defer cursor.Close(ctx)
 
-	totalRecords := 0
 	var workflows []*Workflow
 
-	for rows.Next() {
+	for cursor.Next(ctx) {
 		var workflow Workflow
 
-		err := rows.Scan(
-			&totalRecords, // scanned count
-			&workflow.ID,
-			&workflow.CreatedAt,
-			&workflow.UpdatedAt,
-			&workflow.UniqueID,
-			&workflow.Name,
-			&workflow.Active,
-			&workflow.Version,
-		)
-		if err != nil {
+		if err := cursor.Decode(&workflow); err != nil {
 			return nil, Metadata{}, err
 		}
 
 		workflows = append(workflows, &workflow)
 	}
 
-	if err = rows.Err(); err != nil {
+	if err := cursor.Err(); err != nil {
 		return nil, Metadata{}, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
+	totalRecords, err := w.Collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, Metadata{}, err
+	}
+
+	metadata := calculateMetadata(int(totalRecords), filters.Page, filters.PageSize)
 
 	return workflows, metadata, nil
 }
 
 func (w WorkflowModel) Update(workflow *Workflow) error {
-	query := `
-		UPDATE workflows
-		SET updated_at = NOW(), name = $1, version = version + 1
-		WHERE id = $2 AND version = $3
-		RETURNING version`
-
-	args := []any{
-		workflow.Name,
-		workflow.ID,
-		workflow.Version,
-	}
-
-	// db operations have 3 seconds max to resolve
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := w.DB.QueryRowContext(ctx, query, args...).Scan(&workflow.Version)
-	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return ErrEditConflict
-		default:
-			return err
-		}
+	workflow.UpdatedAt = time.Now()
+	filter := bson.M{"_id": workflow.ID, "version": workflow.Version}
+	update := bson.M{
+		"$set": workflow,
 	}
+
+	result, err := w.Collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return ErrEditConflict
+	}
+	workflow.Version++
 
 	return nil
 }
 
-func (w WorkflowModel) Delete(id int64) error {
-	if id < 1 {
-		return ErrRecordNotFound
-	}
-
-	query := `DELETE FROM workflows WHERE id = $1`
-
-	// db operations have 3 seconds max to resolve
+func (w WorkflowModel) Delete(id primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := w.DB.ExecContext(ctx, query, id)
+	result, err := w.Collection.DeleteOne(ctx, bson.M{"_id": id})
 	if err != nil {
 		return err
 	}
-
-	rowsDeleted, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsDeleted == 0 {
+	if result.DeletedCount == 0 {
 		return ErrRecordNotFound
 	}
 

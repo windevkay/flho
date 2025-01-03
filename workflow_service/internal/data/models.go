@@ -1,8 +1,9 @@
 package data
 
 import (
-	"database/sql"
 	"errors"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 var (
@@ -12,20 +13,16 @@ var (
 
 type Models struct {
 	Workflows  WorkflowModelInterface
-	States     StateModelInterface
 	Identities IdentityModelInterface
 }
 
-func GetModels(db *sql.DB) Models {
+func GetModels(client *mongo.Client, dbName string) Models {
 	return Models{
-		Workflows:  WorkflowModel{DB: db},
-		States:     StateModel{DB: db},
-		Identities: IdentityModel{DB: db},
+		Workflows:  NewWorkflowModel(client, dbName),
+		Identities: NewIdentityModel(client, dbName),
 	}
 }
 
 func GetMockModels() Models {
-	return Models{
-		Workflows: MockWorkflowModel{},
-	}
+	return Models{}
 }

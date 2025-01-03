@@ -1,6 +1,6 @@
 module github.com/windevkay/flho/mailer_service
 
-go 1.22.1
+go 1.23
 
 require (
 	github.com/go-mail/mail/v2 v2.3.0

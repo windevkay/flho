@@ -1,6 +1,4 @@
 services:
-  # MAILER SERVICE DEFINITIONS
-
   # Service
   mailer-service:
     build:  .
@@ -10,7 +8,5 @@ services:
     deploy:
       mode: replicated
       replicas: 1
-    environment:
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_USERNAME: ${SMTP_USERNAME}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
+    env_file:
+      - .env

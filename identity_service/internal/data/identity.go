@@ -3,11 +3,15 @@ package data
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/windevkay/flhoutils/validator"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -17,21 +21,20 @@ var (
 )
 
 type Identity struct {
-	ID        int64      `json:"id"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty"`
-	DeletedAt *time.Time `json:"deleted_at,omitempty"`
-	UUID      string     `json:"-"`
-	Name      string     `json:"name"`
-	Email     string     `json:"email"`
-	Password  password   `json:"-"`
-	Activated bool       `json:"activated"`
-	Version   int        `json:"-"`
+	ID        primitive.ObjectID `bson:"_id" json:"id"`
+	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+	UUID      string             `bson:"uuid" json:"-"`
+	Name      string             `bson:"name" json:"name"`
+	Email     string             `bson:"email" json:"email"`
+	Password  password           `bson:"password" json:"-"`
+	Activated bool               `bson:"activated" json:"activated"`
+	Version   int                `bson:"version" json:"-"`
 }
 
 type password struct {
-	plaintext *string
-	hash      []byte
+	plaintext *string `bson:"plaintext"`
+	hash      []byte  `bson:"hash"`
 }
 
 func (p *password) Set(plaintextPassword string) error {
@@ -91,159 +94,158 @@ type IdentityModelInterface interface {
 	GetByEmail(email string) (*Identity, error)
 	Update(user *Identity) error
 	GetIdentityForToken(tokenScope, tokenPlaintext string) (*Identity, error)
-	Get(id int64) (*Identity, error)
+	Get(id primitive.ObjectID) (*Identity, error)
 }
 
 type IdentityModel struct {
-	DB *sql.DB
+	Collection *mongo.Collection
+}
+
+func NewIdentityModel(client *mongo.Client, dbName string) IdentityModel {
+	collection := client.Database(dbName).Collection("identities")
+	model := IdentityModel{
+		Collection: collection,
+	}
+
+	// Create unique email index
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := collection.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "email", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return model
 }
 
 func (i IdentityModel) Insert(identity *Identity) error {
-	query := `INSERT INTO identities (uuid, name, email, password_hash, activated)
-				VALUES ($1, $2, $3, $4, $5)
-				RETURNING id, created_at, updated_at, version`
-
-	args := []any{identity.UUID, identity.Name, identity.Email, identity.Password.hash, identity.Activated}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := i.DB.QueryRowContext(ctx, query, args...).Scan(&identity.ID, &identity.CreatedAt, &identity.UpdatedAt, &identity.Version)
+	identity.ID = primitive.NewObjectID()
+	identity.CreatedAt = time.Now()
+	identity.UpdatedAt = time.Now()
+
+	_, err := i.Collection.InsertOne(ctx, identity)
 	if err != nil {
-		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "identities_email_key"`:
+		if mongo.IsDuplicateKeyError(err) {
 			return ErrDuplicateEmail
-		default:
-			return err
 		}
+		return err
 	}
 
 	return nil
 }
 
 func (i IdentityModel) GetByEmail(email string) (*Identity, error) {
-	query := `SELECT id, created_at, updated_at, name, email, password_hash, activated, version
-				FROM identities
-				WHERE email = $1`
-
-	var identity Identity
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := i.DB.QueryRowContext(ctx, query, email).Scan(
-		&identity.ID,
-		&identity.CreatedAt,
-		&identity.UpdatedAt,
-		&identity.Name,
-		&identity.Email,
-		&identity.Password.hash,
-		&identity.Activated,
-		&identity.Version,
-	)
+	var identity Identity
+	err := i.Collection.FindOne(ctx, bson.M{"email": email}).Decode(&identity)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		if err == mongo.ErrNoDocuments {
 			return nil, ErrRecordNotFound
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
 
 	return &identity, nil
 }
 
 func (i IdentityModel) Update(identity *Identity) error {
-	query := `UPDATE identities
-				SET updated_at = NOW(), name = $1, email = $2, password_hash = $3, activated = $4, version = version + 1
-				WHERE id = $5 AND version = $6
-				RETURNING version`
-
-	args := []any{
-		identity.Name,
-		identity.Email,
-		identity.Password.hash,
-		identity.Activated,
-		identity.ID,
-		identity.Version,
-	}
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := i.DB.QueryRowContext(ctx, query, args...).Scan(&identity.Version)
+	identity.UpdatedAt = time.Now()
+
+	filter := bson.M{"_id": identity.ID, "version": identity.Version}
+	update := bson.M{
+		"$set": bson.M{
+			"name":       identity.Name,
+			"email":      identity.Email,
+			"password":   identity.Password,
+			"activated":  identity.Activated,
+			"updated_at": identity.UpdatedAt,
+			"version":    identity.Version,
+		},
+	}
+
+	result, err := i.Collection.UpdateOne(ctx, filter, update)
 	if err != nil {
-		switch {
-		case err.Error() == `pq: duplicate key value violates unique constraint "identities_email_key"`:
-			return ErrDuplicateEmail
-		case errors.Is(err, sql.ErrNoRows):
-			return ErrEditConflict
-		default:
-			return err
-		}
+		return err
+	}
+
+	if result.MatchedCount == 0 {
+		return ErrEditConflict
 	}
 
 	return nil
 }
 
 func (i IdentityModel) GetIdentityForToken(tokenScope, tokenPlaintext string) (*Identity, error) {
-	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
-
-	query := `SELECT i.id, i.created_at, i.updated_at, i.name, i.email, i.password_hash, i.activated, i.version
-				FROM identities i
-				INNER JOIN tokens t
-				ON i.id = t.user_id
-				WHERE t.hash = $1
-				AND t.scope = $2
-				AND t.expiry > $3`
-
-	args := []any{tokenHash[:], tokenScope, time.Now()}
-
-	var identity Identity
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := i.DB.QueryRowContext(ctx, query, args...).Scan(
-		&identity.ID, &identity.CreatedAt, &identity.UpdatedAt, &identity.Name, &identity.Email, &identity.Password.hash, &identity.Activated, &identity.Version)
-	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
-		default:
-			return nil, err
-		}
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+
+	pipeline := []bson.M{
+		{
+			"$lookup": bson.M{
+				"from":         "tokens",
+				"localField":   "_id",
+				"foreignField": "identity_id",
+				"as":           "tokens",
+			},
+		},
+		{
+			"$match": bson.M{
+				"tokens": bson.M{
+					"$elemMatch": bson.M{
+						"hash":   tokenHash[:],
+						"scope":  tokenScope,
+						"expiry": bson.M{"$gt": time.Now()},
+					},
+				},
+			},
+		},
 	}
+
+	var identity Identity
+	cursor, err := i.Collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	if !cursor.Next(ctx) {
+		return nil, ErrRecordNotFound
+	}
+
+	err = cursor.Decode(&identity)
+	if err != nil {
+		return nil, err
+	}
+
 	return &identity, nil
 }
 
-func (i IdentityModel) Get(id int64) (*Identity, error) {
-	query := `SELECT id, created_at, name, email, password_hash, activated, version
-				FROM identities
-				WHERE id = $1`
-
-	var identity Identity
-
+func (i IdentityModel) Get(id primitive.ObjectID) (*Identity, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := i.DB.QueryRowContext(ctx, query, id).Scan(
-		&identity.ID,
-		&identity.CreatedAt,
-		&identity.Name,
-		&identity.Email,
-		&identity.Password.hash,
-		&identity.Activated,
-		&identity.Version,
-	)
-
+	var identity Identity
+	err := i.Collection.FindOne(ctx, bson.M{"_id": id}).Decode(&identity)
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		if err == mongo.ErrNoDocuments {
 			return nil, ErrRecordNotFound
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
 
 	return &identity, nil

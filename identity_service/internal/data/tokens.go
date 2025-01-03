@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base32"
 	"time"
 
 	"github.com/windevkay/flhoutils/validator"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
@@ -16,14 +18,15 @@ const (
 )
 
 type Token struct {
-	Plaintext  string
-	Hash       []byte
-	IdentityID int64
-	Expiry     time.Time
-	Scope      string
+	ID         primitive.ObjectID `bson:"_id"`
+	Plaintext  string             `bson:"plaintext"`
+	Hash       []byte             `bson:"hash"`
+	IdentityID primitive.ObjectID `bson:"identity_id"`
+	Expiry     time.Time          `bson:"expiry"`
+	Scope      string             `bson:"scope"`
 }
 
-func generateToken(identityID int64, ttl time.Duration, scope string) (*Token, error) {
+func generateToken(identityID primitive.ObjectID, ttl time.Duration, scope string) (*Token, error) {
 	token := &Token{
 		IdentityID: identityID,
 		Expiry:     time.Now().Add(ttl),
@@ -53,15 +56,22 @@ func ValidateTokenPlaintext(v *validator.Validator, tokenPlaintext string) {
 
 type TokenModelInterface interface {
 	Insert(token *Token) error
-	New(identityID int64, ttl time.Duration, scope string) (*Token, error)
-	DeleteScopeTokensForIdentity(scope string, identityID int64) error
+	New(identityID primitive.ObjectID, ttl time.Duration, scope string) (*Token, error)
+	DeleteScopeTokensForIdentity(scope string, identityID primitive.ObjectID) error
 }
 
 type TokenModel struct {
-	DB *sql.DB
+	Collection *mongo.Collection
 }
 
-func (t TokenModel) New(identityID int64, ttl time.Duration, scope string) (*Token, error) {
+func NewTokenModel(client *mongo.Client, dbName string) TokenModel {
+	collection := client.Database(dbName).Collection("tokens")
+	return TokenModel{
+		Collection: collection,
+	}
+}
+
+func (t TokenModel) New(identityID primitive.ObjectID, ttl time.Duration, scope string) (*Token, error) {
 	token, err := generateToken(identityID, ttl, scope)
 	if err != nil {
 		return nil, err
@@ -72,24 +82,26 @@ func (t TokenModel) New(identityID int64, ttl time.Duration, scope string) (*Tok
 }
 
 func (t TokenModel) Insert(token *Token) error {
-	query := `INSERT INTO tokens (hash, identity_id, expiry, scope)
-				VALUES ($1, $2, $3, $4)`
-
-	args := []any{token.Hash, token.IdentityID, token.Expiry, token.Scope}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := t.DB.ExecContext(ctx, query, args...)
-	return err
+	_, err := t.Collection.InsertOne(ctx, token)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (t TokenModel) DeleteScopeTokensForIdentity(scope string, identityID int64) error {
-	query := `DELETE FROM tokens WHERE scope = $1 AND identity_id = $2`
-
+func (t TokenModel) DeleteScopeTokensForIdentity(scope string, identityID primitive.ObjectID) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	_, err := t.DB.ExecContext(ctx, query, scope, identityID)
-	return err
+	filter := bson.M{"scope": scope, "identity_id": identityID}
+	_, err := t.Collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

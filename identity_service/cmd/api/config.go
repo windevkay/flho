@@ -1,13 +1,13 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"expvar"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -17,6 +17,8 @@ import (
 	"github.com/windevkay/flho/identity_service/internal/rpc"
 	"github.com/windevkay/flho/identity_service/internal/services"
 	"github.com/windevkay/flho/identity_service/internal/vcs"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type application struct {
@@ -34,10 +36,10 @@ type appConfig struct {
 	mailerServiceAddr string
 	messageQueueAddr  string
 	db                struct {
-		dsn          string
-		maxOpenConns int
-		maxIdleConns int
-		maxIdleTime  time.Duration
+		uri            string
+		database       string
+		maxPoolSize    uint64
+		connectTimeout time.Duration
 	}
 	limiter struct {
 		rps     float64
@@ -47,7 +49,7 @@ type appConfig struct {
 }
 
 type appConnections struct {
-	db          *sql.DB
+	db          *mongo.Client
 	amqp        *amqp.Connection
 	rpc         rpc.Connections
 	amqpChannel *amqp.Channel
@@ -60,54 +62,94 @@ var (
 	version               = vcs.Version()
 )
 
-// loadAppConfig loads the application configuration from command-line flags.
+// loadAppConfig loads the application configuration from environment variables.
 // It sets various configuration options such as server port, environment, gRPC server addresses,
 // message queue address, database connection settings, and rate limiter settings.
 // It also provides an option to display the application version and exit.
 //
-// Flags:
-// -port: API server port (default: 4000)
-// -env: Environment (development|staging|production) (default: "development")
-// -mailer-server: Mailer service address
-// -message-queue-server: Message queue address
-// -db-dsn: PostgreSQL DSN
-// -db-max-open-conns: PostgreSQL max open connections (default: 25)
-// -db-max-idle-conns: PostgreSQL max idle connections (default: 25)
-// -db-max-idle-time: PostgreSQL max connection idle time (default: 15m)
-// -limiter-rps: Rate limiter maximum requests per second (default: 2)
-// -limiter-burst: Rate limiter maximum burst (default: 4)
-// -limiter-enabled: Enable rate limiter (default: true)
-// -version: Display version and exit
+// Environment Variables:
+// - PORT: API server port (default: 4000)
+// - ENV: Environment (development|staging|production) (default: "development")
+// - MAILER_SERVER: Mailer service address
+// - MESSAGE_QUEUE_SERVER: Message queue address
+// - DB_URI: DB connection URI
+// - DB_NAME: Database name
+// - DB_MAX_POOL_SIZE: DB max connection pool size (default: 100)
+// - DB_CONNECT_TIMEOUT: DB connection timeout (default: 10s)
+// - LIMITER_RPS: Rate limiter maximum requests per second (default: 2)
+// - LIMITER_BURST: Rate limiter maximum burst (default: 4)
+// - LIMITER_ENABLED: Enable rate limiter (default: true)
+// - VERSION: Display version and exit
 func loadAppConfig() {
-	// environment flags
-	flag.IntVar(&cfg.port, "port", 4000, "API server port")
-	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
+	cfg.port = getEnvAsInt("PORT", 4000)
+	cfg.env = getEnv("ENV", "development")
+	cfg.mailerServiceAddr = getEnv("MAILER_SERVER", "")
+	cfg.messageQueueAddr = getEnv("MESSAGE_QUEUE_SERVER", "")
+	cfg.db.uri = getEnv("DB_URI", "")
+	cfg.db.database = getEnv("DB_NAME", "")
+	cfg.db.maxPoolSize = getEnvAsUint64("DB_MAX_POOL_SIZE", 100)
+	cfg.db.connectTimeout = getEnvAsDuration("DB_CONNECT_TIMEOUT", 10*time.Second)
+	cfg.limiter.rps = getEnvAsFloat64("LIMITER_RPS", 2)
+	cfg.limiter.burst = getEnvAsInt("LIMITER_BURST", 4)
+	cfg.limiter.enabled = getEnvAsBool("LIMITER_ENABLED", true)
 
-	// gRPC servers
-	flag.StringVar(&cfg.mailerServiceAddr, "mailer-server", "", "Mailer service address")
-
-	// message queue connection string
-	flag.StringVar(&cfg.messageQueueAddr, "message-queue-server", "", "Message queue address")
-
-	// db connection and db pool settings flags
-	flag.StringVar(&cfg.db.dsn, "db-dsn", "", "PostgreSQL DSN")
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
-	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", 15*time.Minute, "PostgreSQL max connection idle time")
-
-	// rate limiter flags
-	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", 2, "Rate limiter maximum requests per second")
-	flag.IntVar(&cfg.limiter.burst, "limiter-burst", 4, "Rate limiter maximum burst")
-	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", true, "Enable rate limiter")
-
-	displayVersion := flag.Bool("version", false, "Display version and exit")
-
-	flag.Parse()
-
-	if *displayVersion {
+	if getEnvAsBool("VERSION", false) {
 		fmt.Printf("Version:\t%s\n", version)
 		os.Exit(0)
 	}
+}
+
+// getEnv reads an environment variable or returns a default value if not set.
+func getEnv(key string, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsInt reads an environment variable as an integer or returns a default value if not set.
+func getEnvAsInt(name string, defaultValue int) int {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.Atoi(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsUint64 reads an environment variable as a uint64 or returns a default value if not set.
+func getEnvAsUint64(name string, defaultValue uint64) uint64 {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.ParseUint(valueStr, 10, 64); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsFloat64 reads an environment variable as a float64 or returns a default value if not set.
+func getEnvAsFloat64(name string, defaultValue float64) float64 {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.ParseFloat(valueStr, 64); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsBool reads an environment variable as a boolean or returns a default value if not set.
+func getEnvAsBool(name string, defaultValue bool) bool {
+	valueStr := getEnv(name, "")
+	if value, err := strconv.ParseBool(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvAsDuration reads an environment variable as a time.Duration or returns a default value if not set.
+func getEnvAsDuration(name string, defaultValue time.Duration) time.Duration {
+	valueStr := getEnv(name, "")
+	if value, err := time.ParseDuration(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
 }
 
 // setupConnections initializes and establishes connections to various services required by the application.
@@ -118,13 +160,13 @@ func loadAppConfig() {
 //   - *appConnections: A struct containing the established connections.
 //   - error: An error if any of the connections fail to be established.
 func setupConnections() (*appConnections, error) {
-	// connect to primary datastore - postgres
-	db, err := openDB(cfg)
+	// connect to DB
+	mongoClient, err := connectToDB(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Info("Connection to DB has been established")
+	logger.Info("DB connection has been established")
 	// gRPC server connections
 	// mailer server
 	mailerConn, err := connectToMailerServer(cfg)
@@ -152,7 +194,7 @@ func setupConnections() (*appConnections, error) {
 	logger.Info("AMQP connection has been established")
 
 	connections := &appConnections{
-		db:   db,
+		db:   mongoClient,
 		amqp: amqpConn,
 		rpc: rpc.Connections{
 			MailerConn: mailerConn,
@@ -172,15 +214,20 @@ func setupConnections() (*appConnections, error) {
 //
 // Parameters:
 // - db: a pointer to the sql.DB instance representing the database connection.
-func publishMetrics(db *sql.DB) {
+func publishMetrics(db *mongo.Client) {
 	expvar.NewString("version").Set(version)
 
 	expvar.Publish("goroutines", expvar.Func(func() any {
 		return runtime.NumGoroutine()
 	}))
 
-	expvar.Publish("database", expvar.Func(func() any {
-		return db.Stats()
+	expvar.Publish("db-stats", expvar.Func(func() any {
+		result := db.Database(cfg.db.database).RunCommand(context.Background(), bson.D{{Key: "serverStatus", Value: 1}})
+		stats, err := result.Raw()
+		if err != nil {
+			return err.Error()
+		}
+		return stats.String()
 	}))
 
 	expvar.Publish("timestamp", expvar.Func(func() any {
