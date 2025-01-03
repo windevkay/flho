@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	pb "github.com/windevkay/flho/mailer_service/proto"
+	pb "github.com/windevkay/flho/notification_service/proto"
 )
 
 func (s *server) SendWelcomeEmail(ctx context.Context, in *pb.WelcomeEmailRequest) (*empty.Empty, error) {

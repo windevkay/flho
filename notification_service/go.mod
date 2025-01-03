@@ -1,4 +1,4 @@
-module github.com/windevkay/flho/mailer_service
+module github.com/windevkay/flho/notification_service
 
 go 1.23
 

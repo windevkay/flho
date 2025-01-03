@@ -13,7 +13,7 @@ import (
 	"github.com/windevkay/flho/identity_service/internal/data"
 	"github.com/windevkay/flho/identity_service/internal/queue"
 	"github.com/windevkay/flho/identity_service/internal/rpc"
-	pb "github.com/windevkay/flho/mailer_service/proto"
+	pb "github.com/windevkay/flho/notification_service/proto"
 	"github.com/windevkay/flhoutils/helpers"
 	"github.com/windevkay/flhoutils/validator"
 )

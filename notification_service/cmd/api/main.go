@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/windevkay/flho/mailer_service/internal/mailer"
-	pb "github.com/windevkay/flho/mailer_service/proto"
+	"github.com/windevkay/flho/notification_service/internal/mailer"
+	pb "github.com/windevkay/flho/notification_service/proto"
 
 	_ "github.com/lib/pq"
 )

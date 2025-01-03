@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/windevkay/flho/mailer_service/internal/vcs"
+	"github.com/windevkay/flho/notification_service/internal/vcs"
 )
 
 type application struct {
