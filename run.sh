@@ -10,7 +10,7 @@ source "$SCRIPT_DIR/config.cfg"
 
 start(){
     # start shared services first
-    docker-compose -f ../../infra/shared_docker_services/docker-compose.yaml up
+    docker-compose -f docker-compose-shared.yml -d up
     for service in "${services[@]}"; do
         cd "$service"
         make run/api
@@ -25,7 +25,7 @@ stop(){
         cd ..
     done
     # stop shared services
-    docker-compose -f ../../infra/shared_docker_services/docker-compose.yaml down
+    docker-compose -f docker-compose-shared.yml down
 }
 
 if [ "$1" == "-start" ]; then

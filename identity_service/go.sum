@@ -18,8 +18,8 @@ github.com/pascaldekloe/jwt v1.12.0 h1:imQSkPOtAIBAXoKKjL9ZVJuF/rVqJ+ntiLGpLyeqM
 github.com/pascaldekloe/jwt v1.12.0/go.mod h1:LiIl7EwaglmH1hWThd/AmydNCnHf/mmfluBlNqHbk8U=
 github.com/rabbitmq/amqp091-go v1.10.0 h1:STpn5XsHlHGcecLmMFCtg7mqq0RnD+zFr4uzukfVhBw=
 github.com/rabbitmq/amqp091-go v1.10.0/go.mod h1:Hy4jKW5kQART1u+JkDTF9YYOQUHXqMuhrgxOEeS7G4o=
-github.com/windevkay/flho/mailer_service v0.0.0-20240828150443-96db676d7f91 h1:s3qYE4NesLSXcrdVtNJUKqknmLWpv7GzbXE8gKx5dXY=
-github.com/windevkay/flho/mailer_service v0.0.0-20240828150443-96db676d7f91/go.mod h1:BdW28U4Z/7QEnqNsIndl7PnHfLVBZX+xizEUNSWv0pg=
+github.com/windevkay/flho/notification_service v0.0.0-20250103173742-9f82421bfd06 h1:fSUIZ6kzNOHb0RJnYQPHDRvJEYdt3eNi7WgNDWg/Y84=
+github.com/windevkay/flho/notification_service v0.0.0-20250103173742-9f82421bfd06/go.mod h1:1pjnpUuxhpUnUSRTrRuvu5jGXlfgLGSRefokxKriiCQ=
 github.com/windevkay/flhoutils v1.0.0 h1:fHJHJOfO6KvWca6wBNjPr7GZzpzcNyHwtDvQDj5kJI8=
 github.com/windevkay/flhoutils v1.0.0/go.mod h1:Jf9kYrYJpT2Ook0b7QtqHUZr9TdNjplK29P77lUxhUk=
 github.com/xdg-go/pbkdf2 v1.0.0 h1:Su7DPu48wXMwC3bs7MCNG+z4FhcyEuz5dlvchbq0B0c=
