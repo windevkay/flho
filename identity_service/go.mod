@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/pascaldekloe/jwt v1.12.0
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/windevkay/flho/notification_service v0.0.0-20240828150443-96db676d7f91
+	github.com/windevkay/flho/notification_service v0.0.0-20250103173742-9f82421bfd06
 	go.mongodb.org/mongo-driver v1.17.1
 	google.golang.org/grpc v1.66.0
 )
