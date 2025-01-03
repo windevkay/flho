@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	pb "github.com/windevkay/flho/mailer_service/proto"
+	pb "github.com/windevkay/flho/notification_service/proto"
 	"google.golang.org/grpc"
 )
 
