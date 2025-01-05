@@ -35,7 +35,7 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	ws := services.NewWorkflowService(workflowServiceConfig)
+	ws := services.WorkflowService{ServiceConfig: serviceConfig}
 	workflow, err := ws.CreateWorkflow(input, app.contextGetUser(r))
 	if err != nil {
 		switch {
@@ -55,13 +55,10 @@ func (app *application) createWorkflowHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := ReadObjectIDParam(r)
-	if err != nil {
-		errs.NotFoundResponse(w, r)
-		return
-	}
+	params := httprouter.ParamsFromContext(r.Context())
+	id := params.ByName("id")
 
-	ws := services.NewWorkflowService(workflowServiceConfig)
+	ws := services.WorkflowService{ServiceConfig: serviceConfig}
 	workflow, err := ws.ShowWorkflow(id)
 	if err != nil {
 		switch {
@@ -77,21 +74,18 @@ func (app *application) showWorkflowHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := ReadObjectIDParam(r)
-	if err != nil {
-		errs.NotFoundResponse(w, r)
-		return
-	}
+	params := httprouter.ParamsFromContext(r.Context())
+	id := params.ByName("id")
 
 	var input services.UpdateInput
 
-	err = helpers.ReadJSON(w, r, &input)
+	err := helpers.ReadJSON(w, r, &input)
 	if err != nil {
 		errs.BadRequestResponse(w, r, err)
 		return
 	}
 
-	ws := services.NewWorkflowService(workflowServiceConfig)
+	ws := services.WorkflowService{ServiceConfig: serviceConfig}
 	workflow, err := ws.UpdateWorkflow(id, input)
 	if err != nil {
 		switch {
@@ -111,14 +105,11 @@ func (app *application) updateWorkflowHandler(w http.ResponseWriter, r *http.Req
 }
 
 func (app *application) deleteWorkflowHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := ReadObjectIDParam(r)
-	if err != nil {
-		errs.NotFoundResponse(w, r)
-		return
-	}
+	params := httprouter.ParamsFromContext(r.Context())
+	id := params.ByName("id")
 
-	ws := services.NewWorkflowService(workflowServiceConfig)
-	err = ws.DeleteWorkflow(id)
+	ws := services.WorkflowService{ServiceConfig: serviceConfig}
+	err := ws.DeleteWorkflow(id)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -141,7 +132,7 @@ func (app *application) listWorkflowHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ws := services.NewWorkflowService(workflowServiceConfig)
+	ws := services.WorkflowService{ServiceConfig: serviceConfig}
 	workflows, metadata, err := ws.ListWorkflows(input, app.contextGetUser(r))
 	if err != nil {
 		switch {

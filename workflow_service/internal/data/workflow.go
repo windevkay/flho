@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/windevkay/flhoutils/validator"
@@ -13,16 +14,18 @@ import (
 )
 
 type State struct {
-	ID         primitive.ObjectID `bson:"_id,omitempty" json:"-"`
+	ID         primitive.ObjectID `bson:"_id" json:"-"`
 	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
 	Name       string             `bson:"name" json:"name"`
+	Step       int                `bson:"step" json:"step"`
+	Retry      bool               `bson:"retry" json:"retry"`
 	RetryUrl   string             `bson:"retryUrl" json:"retryUrl"`
 	RetryAfter Timeout            `bson:"retryAfter" json:"retryAfter"`
 }
 
 type Workflow struct {
-	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ID         primitive.ObjectID `bson:"_id" json:"id"`
 	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
 	IdentityId primitive.ObjectID `bson:"identity_id" json:"identity_id"`
@@ -33,6 +36,21 @@ type Workflow struct {
 	Version    int32              `bson:"version" json:"version"`
 }
 
+func (w *Workflow) HasStateStep(step int) bool {
+	return slices.ContainsFunc(w.States, func(s State) bool {
+		return s.Step == step
+	})
+}
+
+func (w *Workflow) HasValidRetries() bool {
+	for _, s := range w.States {
+		if s.Retry && (s.RetryUrl == "" || s.RetryAfter == 0) {
+			return false
+		}
+	}
+	return true
+}
+
 var (
 	ErrValidationFailed = errors.New("validation failed")
 )
@@ -40,14 +58,15 @@ var (
 func ValidateWorkflow(v *validator.Validator, w *Workflow) {
 	v.Check(w.Name != "", "name", "must be provided")
 	v.Check(len(w.States) >= 2, "states", "must have at least 2 values")
+	v.Check(w.HasValidRetries(), "retry", "when true must have a valid RetryUrl and RetryAfter value")
 }
 
 type WorkflowModelInterface interface {
 	Insert(workflow *Workflow) error
-	Get(id primitive.ObjectID) (*Workflow, error)
+	Get(uniqueId string) (*Workflow, error)
 	GetAll(identityId primitive.ObjectID, filters Filters) ([]*Workflow, Metadata, error)
 	Update(workflow *Workflow) error
-	Delete(id primitive.ObjectID) error
+	Delete(uniqueId string) error
 }
 
 type WorkflowModel struct {
@@ -80,13 +99,13 @@ func (w WorkflowModel) Insert(workflow *Workflow) error {
 	return err
 }
 
-func (w WorkflowModel) Get(id primitive.ObjectID) (*Workflow, error) {
+func (w WorkflowModel) Get(uniqueId string) (*Workflow, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	var workflow Workflow
 
-	err := w.Collection.FindOne(ctx, bson.M{"_id": id}).Decode(&workflow)
+	err := w.Collection.FindOne(ctx, bson.M{"uniqueId": uniqueId}).Decode(&workflow)
 	if err == mongo.ErrNoDocuments {
 		return nil, ErrRecordNotFound
 	}
@@ -159,11 +178,11 @@ func (w WorkflowModel) Update(workflow *Workflow) error {
 	return nil
 }
 
-func (w WorkflowModel) Delete(id primitive.ObjectID) error {
+func (w WorkflowModel) Delete(uniqueId string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result, err := w.Collection.DeleteOne(ctx, bson.M{"_id": id})
+	result, err := w.Collection.DeleteOne(ctx, bson.M{"uniqueId": uniqueId})
 	if err != nil {
 		return err
 	}

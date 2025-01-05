@@ -12,14 +12,16 @@ var (
 )
 
 type Models struct {
-	Workflows  WorkflowModelInterface
 	Identities IdentityModelInterface
+	Runs       RunModelInterface
+	Workflows  WorkflowModelInterface
 }
 
 func GetModels(client *mongo.Client, dbName string) Models {
 	return Models{
-		Workflows:  NewWorkflowModel(client, dbName),
 		Identities: NewIdentityModel(client, dbName),
+		Runs:       NewRunModel(client, dbName),
+		Workflows:  NewWorkflowModel(client, dbName),
 	}
 }
 
