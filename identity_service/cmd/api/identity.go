@@ -20,7 +20,7 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	is := services.NewIdentityService(identityServiceConfig)
+	is := services.IdentityService{ServiceConfig: serviceConfig}
 	identity, err := is.RegisterIdentity(input)
 	if err != nil {
 		switch {
@@ -46,7 +46,7 @@ func (app *application) activateIdentityHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	is := services.NewIdentityService(identityServiceConfig)
+	is := services.IdentityService{ServiceConfig: serviceConfig}
 	identity, err := is.ActivateIdentity(input)
 	if err != nil {
 		switch {

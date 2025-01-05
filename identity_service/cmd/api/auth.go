@@ -1,12 +1,8 @@
 package main
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"errors"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/pascaldekloe/jwt"
@@ -65,32 +61,19 @@ func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, 
 		return
 	}
 
-	// fetch private key needed for token creation
-	privKeyPath := filepath.Join("./infra", "keys", "ec_private_key.pem")
-	privPem, err := os.ReadFile(privKeyPath)
-	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
-		return
-	}
-	block, _ := pem.Decode(privPem)
-	priv, err := x509.ParseECPrivateKey(block.Bytes)
-	if err != nil {
-		errs.ServerErrorResponse(w, r, err)
-		return
-	}
+	// fetch jwt secret from config
+	jwtSecret := []byte(app.config.jwt.secret)
 
 	var claims jwt.Claims
 	claims.Subject = identity.UUID
 	claims.Issued = jwt.NewNumericTime(time.Now())
 	claims.NotBefore = jwt.NewNumericTime(time.Now())
 	claims.Expires = jwt.NewNumericTime(time.Now().Add(24 * time.Hour))
-	// swap to env variables
 	claims.Issuer = "github.com/windevkay/flho/identity-service"
 	claims.Audiences = []string{"github.com/windevkay/flho"}
 
-	// swap out claims function for one that accepts assymetric algo - private key
-	//jwtBytes, err := claims.HMACSign(jwt.HS256, []byte(app.config.jwt.secret))
-	jwtBytes, err := claims.ECDSASign(jwt.ES256, priv)
+	// sign the token using HMAC algorithm and jwt secret
+	jwtBytes, err := claims.HMACSign(jwt.HS256, jwtSecret)
 	if err != nil {
 		errs.ServerErrorResponse(w, r, err)
 		return

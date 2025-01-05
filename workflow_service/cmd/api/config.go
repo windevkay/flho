@@ -41,6 +41,9 @@ type appConfig struct {
 		maxPoolSize    uint64
 		connectTimeout time.Duration
 	}
+	jwt struct {
+		secret string
+	}
 	limiter struct {
 		rps     float64
 		burst   int
@@ -56,10 +59,10 @@ type appConnections struct {
 }
 
 var (
-	cfg                   appConfig
-	logger                = slog.New(slog.NewTextHandler(os.Stdout, nil))
-	workflowServiceConfig *services.WorkflowServiceConfig
-	version               = vcs.Version()
+	cfg           appConfig
+	logger        = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	serviceConfig *services.ServiceConfig
+	version       = vcs.Version()
 )
 
 // loadAppConfig loads the application configuration from environment variables.
@@ -89,6 +92,7 @@ func loadAppConfig() {
 	cfg.db.database = getEnv("DB_NAME", "")
 	cfg.db.maxPoolSize = getEnvAsUint64("DB_MAX_POOL_SIZE", 100)
 	cfg.db.connectTimeout = getEnvAsDuration("DB_CONNECT_TIMEOUT", 10*time.Second)
+	cfg.jwt.secret = getEnv("JWT_SECRET", "")
 	cfg.limiter.rps = getEnvAsFloat64("LIMITER_RPS", 2)
 	cfg.limiter.burst = getEnvAsInt("LIMITER_BURST", 4)
 	cfg.limiter.enabled = getEnvAsBool("LIMITER_ENABLED", true)
@@ -239,11 +243,5 @@ func publishMetrics(db *mongo.Client) {
 // for various services. It sets up the necessary dependencies such as models,
 // RPC clients, message queue channel, wait group, and logger for the service.
 func (app *application) registerServiceConfigs() {
-	workflowServiceConfig = &services.WorkflowServiceConfig{
-		Models:    app.models,
-		Rpclients: app.rpc,
-		Channel:   app.mqChannel,
-		Wg:        &app.wg,
-		Logger:    app.logger,
-	}
+	serviceConfig.Register(app.models, app.rpc, app.mqChannel, &app.wg, app.logger)
 }

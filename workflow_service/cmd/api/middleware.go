@@ -2,15 +2,10 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/pem"
 	"expvar"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,20 +48,10 @@ func (app *application) contextGetUser(r *http.Request) string {
 }
 
 func (app *application) validateJWTToken(token string) (*jwt.Claims, error) {
-	// retrieve public key to decode token
-	pubKeyPath := filepath.Join(".", "keys", "ec_public_key.pem")
-	pubPem, err := os.ReadFile(pubKeyPath)
-	if err != nil {
-		panic(err)
-	}
-	block, _ := pem.Decode(pubPem)
-	pubKeyInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		panic(err)
-	}
-	pubKey := pubKeyInterface.(*ecdsa.PublicKey)
+	// retrieve jwt secret from config
+	jwtSecret := []byte(app.config.jwt.secret)
 
-	claims, err := jwt.ECDSACheck([]byte(token), pubKey)
+	claims, err := jwt.HMACCheck([]byte(token), jwtSecret)
 	if err != nil {
 		return nil, err
 	}
