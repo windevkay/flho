@@ -23,8 +23,9 @@ func (rs *RunService) StartRun(workflowUniqueId string, step int) (string, error
 	}
 
 	run := &data.Run{
-		UniqueID: helpers.GenerateUniqueId(12),
-		Step:     step,
+		WorkflowId: workflow.ID,
+		UniqueID:   helpers.GenerateUniqueId(12),
+		Step:       step,
 	}
 
 	err = rs.Models.Runs.Insert(run)
@@ -35,7 +36,17 @@ func (rs *RunService) StartRun(workflowUniqueId string, step int) (string, error
 	return run.UniqueID, nil
 }
 
-func (rs *RunService) UpdateRun(runUniqueId string, step int) error {
+func (rs *RunService) UpdateRun(workflowUniqueId string, runUniqueId string, step int) error {
+	workflow, err := rs.Models.Workflows.Get(workflowUniqueId)
+	if err != nil {
+		rs.Logger.Error(err.Error())
+		return err
+	}
+
+	if validStep := workflow.HasStateStep(step); !validStep {
+		return errors.New("invalid step provided")
+	}
+
 	run, err := rs.Models.Runs.Get(runUniqueId)
 	if err != nil {
 		return err
