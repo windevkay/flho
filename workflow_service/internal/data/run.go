@@ -10,11 +10,12 @@ import (
 )
 
 type Run struct {
-	ID        primitive.ObjectID `bson:"_id" json:"-"`
-	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
-	UniqueID  string             `bson:"uniqueId" json:"uniqueId"`
-	Step      int                `bson:"step" json:"step"`
+	ID         primitive.ObjectID `bson:"_id" json:"-"`
+	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
+	WorkflowId primitive.ObjectID `boson:"workflow_id" json:"workflow_id"`
+	UniqueID   string             `bson:"uniqueId" json:"uniqueId"`
+	Step       int                `bson:"step" json:"step"`
 }
 
 type RunModelInterface interface {
