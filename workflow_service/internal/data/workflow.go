@@ -3,7 +3,6 @@ package data
 import (
 	"context"
 	"errors"
-	"slices"
 	"time"
 
 	"github.com/windevkay/flhoutils/validator"
@@ -36,10 +35,13 @@ type Workflow struct {
 	Version    int32              `bson:"version" json:"version"`
 }
 
-func (w *Workflow) HasStateStep(step int) bool {
-	return slices.ContainsFunc(w.States, func(s State) bool {
-		return s.Step == step
-	})
+func (w *Workflow) GetStateByStep(step int) (State, bool) {
+	for _, state := range w.States {
+		if state.Step == step {
+			return state, true
+		}
+	}
+	return State{}, false
 }
 
 func (w *Workflow) HasValidRetries() bool {
