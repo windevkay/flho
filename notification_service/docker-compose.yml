@@ -1,6 +1,6 @@
 services:
   # Service
-  mailer-service:
+  app:
     build:  .
     restart: always
     ports: 

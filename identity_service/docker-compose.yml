@@ -1,6 +1,6 @@
 services:
   # Service
-  identity-service:
+  app:
     build:  .
     restart: always
     depends_on:
