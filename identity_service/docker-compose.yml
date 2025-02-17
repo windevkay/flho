@@ -1,7 +1,7 @@
 services:
   # Service
   app:
-    build:  .
+    build: .
     restart: always
     depends_on:
       - identity-service-database
@@ -12,6 +12,7 @@ services:
       replicas: 1
     env_file:
       - .env
+
   # Database
   identity-service-database:
     image: mongo:latest
@@ -23,6 +24,7 @@ services:
       - "27017:27017"
     volumes:
       - identity-service-db-data:/data/db
+
   # Date Explorer
   mongo-express:
     image: mongo-express
@@ -37,3 +39,9 @@ services:
 
 volumes:
   identity-service-db-data:
+
+# Apply the network to all services
+networks:
+  default:
+    name: flho_network
+    external: true

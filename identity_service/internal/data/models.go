@@ -22,7 +22,3 @@ func GetModels(client *mongo.Client, dbName string) Models {
 		Tokens:     NewTokenModel(client, dbName),
 	}
 }
-
-func GetMockModels() Models {
-	return Models{}
-}

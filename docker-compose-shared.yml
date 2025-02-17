@@ -12,8 +12,16 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    networks:
+      - flho_network
   # Cache
   redis:
     image: redis:8.0-M02-alpine
     ports:
       - "6379:6379"
+    networks:
+      - flho_network
+
+networks:
+  flho_network:
+    external: true

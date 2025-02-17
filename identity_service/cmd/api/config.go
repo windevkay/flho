@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"expvar"
-	"fmt"
 	"log/slog"
 	"os"
 	"runtime"
@@ -60,8 +59,8 @@ type appConnections struct {
 
 var (
 	cfg           appConfig
-	logger        = slog.New(slog.NewTextHandler(os.Stdout, nil))
-	serviceConfig *services.ServiceConfig
+	logger        = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	serviceConfig services.ServiceConfig
 	version       = vcs.Version()
 )
 
@@ -82,7 +81,6 @@ var (
 // - LIMITER_RPS: Rate limiter maximum requests per second (default: 2)
 // - LIMITER_BURST: Rate limiter maximum burst (default: 4)
 // - LIMITER_ENABLED: Enable rate limiter (default: true)
-// - VERSION: Display version and exit
 func loadAppConfig() {
 	cfg.port = getEnvAsInt("PORT", 4000)
 	cfg.env = getEnv("ENV", "development")
@@ -96,11 +94,6 @@ func loadAppConfig() {
 	cfg.limiter.rps = getEnvAsFloat64("LIMITER_RPS", 2)
 	cfg.limiter.burst = getEnvAsInt("LIMITER_BURST", 4)
 	cfg.limiter.enabled = getEnvAsBool("LIMITER_ENABLED", true)
-
-	if getEnvAsBool("VERSION", false) {
-		fmt.Printf("Version:\t%s\n", version)
-		os.Exit(0)
-	}
 }
 
 // getEnv reads an environment variable or returns a default value if not set.
@@ -157,7 +150,7 @@ func getEnvAsDuration(name string, defaultValue time.Duration) time.Duration {
 }
 
 // setupConnections initializes and establishes connections to various services required by the application.
-// It connects to the primary datastore (PostgreSQL), gRPC servers (e.g., mailer server), and the message queue (RabbitMQ).
+// It connects to the primary datastore (MongoDB), gRPC servers (e.g., mailer server), and the message queue (RabbitMQ).
 // It also sets up message exchanges and queues for RabbitMQ.
 //
 // Returns:

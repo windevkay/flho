@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	httpSwagger "github.com/swaggo/http-swagger"
 	errs "github.com/windevkay/flhoutils/errors"
 )
 
@@ -13,6 +14,9 @@ func (app *application) routes() http.Handler {
 
 	router.NotFound = http.HandlerFunc(errs.NotFoundResponse)
 	router.MethodNotAllowed = http.HandlerFunc(errs.MethodNotAllowedResponse)
+
+	// Add Swagger documentation endpoint
+	router.Handler(http.MethodGet, "/swagger/*any", httpSwagger.WrapHandler)
 
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 	// create and activate user
@@ -23,5 +27,5 @@ func (app *application) routes() http.Handler {
 
 	router.Handler(http.MethodGet, "/debug/vars", expvar.Handler())
 
-	return app.metrics(app.recoverPanic(app.rateLimit(router)))
+	return app.metrics(app.recoverPanic(router))
 }

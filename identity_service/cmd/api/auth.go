@@ -12,6 +12,18 @@ import (
 	"github.com/windevkay/flhoutils/validator"
 )
 
+// @Summary Create authentication token
+// @Description Create a JWT token for authentication
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body object{email=string,password=string} true "Authentication credentials"
+// @Success 201 {object} helpers.Envelope{authentication_token=string}
+// @Failure 400 {object} helpers.Envelope{error=string}
+// @Failure 401 {object} helpers.Envelope{error=string}
+// @Failure 422 {object} helpers.Envelope{error=map[string]string}
+// @Failure 500 {object} helpers.Envelope{error=string}
+// @Router /v1/auth/token [post]
 func (app *application) createAuthenticationTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email    string `json:"email"`

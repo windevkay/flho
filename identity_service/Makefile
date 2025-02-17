@@ -58,3 +58,14 @@ vendor:
 	go mod verify
 	@echo 'Vendoring dependencies...'
 	go mod vendor
+
+
+.PHONY: swagger
+swagger:
+	~/go/bin/swag init -g cmd/api/main.go -q --parseDependency --parseInternal -o ./docs
+
+
+.PHONY: swag
+swag:
+	go install github.com/swaggo/swag/cmd/swag@latest
+
