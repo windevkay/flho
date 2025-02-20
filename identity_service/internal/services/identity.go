@@ -4,31 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rabbitmq/amqp091-go"
 	"github.com/windevkay/flho/identity_service/internal/data"
 	pb "github.com/windevkay/flho/notification_service/proto"
 	"github.com/windevkay/flhoutils/validator"
 )
 
-type SendMessageToQueueFunc func(ch *amqp091.Channel, data interface{}, entity string, action string) error
-type RunInBackgroundFunc func(f func(), wg *sync.WaitGroup)
-
 type IdentityService struct {
 	*ServiceConfig
-	Message         SendMessageToQueueFunc
-	RunInBackground RunInBackgroundFunc
-}
-
-func NewIdentityService(config *ServiceConfig, message SendMessageToQueueFunc, runInBackground RunInBackgroundFunc) *IdentityService {
-	return &IdentityService{
-		ServiceConfig:   config,
-		Message:         message,
-		RunInBackground: runInBackground,
-	}
 }
 
 type RegisterIdentityInput struct {
@@ -93,7 +78,7 @@ func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput) (*data.I
 	}
 
 	// send welcome email
-	i.RunInBackground(func() {
+	i.Background(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 

@@ -21,12 +21,14 @@ import (
 )
 
 type application struct {
-	config    appConfig
-	logger    *slog.Logger
-	mqChannel *amqp.Channel
-	models    data.Models
-	rpc       rpc.Clients
-	wg        sync.WaitGroup
+	config         appConfig
+	logger         *slog.Logger
+	mqChannel      *amqp.Channel
+	messageFunc    services.SendMessageToQueueFunc
+	backgroundFunc services.RunInBackgroundFunc
+	models         data.Models
+	rpc            rpc.Clients
+	wg             sync.WaitGroup
 }
 
 type appConfig struct {
@@ -236,5 +238,5 @@ func publishMetrics(db *mongo.Client) {
 // for various services. It sets up the necessary dependencies such as models,
 // RPC clients, message queue channel, wait group, and logger for the service.
 func (app *application) registerServiceConfigs() {
-	serviceConfig.Register(app.models, app.rpc, app.mqChannel, &app.wg, app.logger)
+	serviceConfig.Register(app.models, app.rpc, app.mqChannel, &app.wg, app.logger, app.backgroundFunc, app.messageFunc)
 }

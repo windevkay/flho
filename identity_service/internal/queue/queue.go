@@ -48,7 +48,7 @@ func setupServiceExchange(ch *amqp.Channel) error {
 // Returns:
 // - error: An error if any exchange declaration or queue binding fails, otherwise nil.
 func setupExternalExchanges(ch *amqp.Channel) error {
-	q, err := ch.QueueDeclare(ServiceQueue, false, false, true, false, nil)
+	q, err := ch.QueueDeclare(ServiceQueue, false, false, false, false, nil)
 	if err != nil {
 		return err
 	}

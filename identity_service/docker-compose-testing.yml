@@ -3,5 +3,19 @@ services:
   test-identity-service-database:
     image: mongo:latest
     restart: always
+    env_file:
+      - .env.testing
     ports:
       - "27018:27017"
+  test-rabbit-mq:
+    image: rabbitmq:4.0-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    env_file:
+      - .env.testing
+    

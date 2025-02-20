@@ -36,6 +36,26 @@ down:
 	@echo 'Done!'
 
 
+.PHONY: start-test-resources
+start-test-resources:
+	@echo 'Starting test resources...'
+	docker compose -f docker-compose-testing.yml up --build -d
+	@echo 'Docker images started!'
+
+
+## tests: run application tests
+.PHONY: tests
+tests: start-test-resources
+	@echo 'Running tests...'
+	go test -race -vet=off ./...
+	@echo 'Tests completed - tearing down test resources'
+	docker compose -f docker-compose-testing.yml down
+	@echo 'Docker images stopped!'
+	@echo 'Pruning volumes...'
+	docker system prune -f
+	@echo 'Done!'
+
+
 # ==================================================================================== #
 # QUALITY CONTROL
 # ==================================================================================== #

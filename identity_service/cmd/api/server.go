@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/windevkay/flho/identity_service/internal/queue"
-	"github.com/windevkay/flhoutils/helpers"
 )
 
 // serveHTTP starts the HTTP server and handles graceful shutdown on receiving
@@ -90,7 +89,7 @@ func (app *application) serveHTTP() error {
 //
 // If an error occurs while starting to consume messages, it logs the error and returns.
 func (app *application) serveQueue() {
-	helpers.RunInBackground(func() {
+	app.backgroundFunc(func() {
 		msgs, err := app.mqChannel.Consume(
 			queue.ServiceQueue,
 			"",

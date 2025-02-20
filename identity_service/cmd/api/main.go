@@ -6,7 +6,9 @@ import (
 
 	"github.com/windevkay/flho/identity_service/docs"
 	"github.com/windevkay/flho/identity_service/internal/data"
+	"github.com/windevkay/flho/identity_service/internal/queue"
 	"github.com/windevkay/flho/identity_service/internal/rpc"
+	"github.com/windevkay/flhoutils/helpers"
 )
 
 func main() {
@@ -14,10 +16,7 @@ func main() {
 	setupDocs()
 
 	app, connections := createApp()
-
-	defer connections.db.Disconnect(context.Background())
-	defer connections.rpc.Close()
-	defer connections.amqp.Close()
+	defer cleanup(connections)
 
 	publishMetrics(connections.db)
 
@@ -42,17 +41,25 @@ func createApp() (*application, *appConnections) {
 	}
 
 	app := &application{
-		config:    cfg,
-		logger:    logger,
-		models:    data.GetModels(connections.db, cfg.db.database),
-		rpc:       rpc.GetClients(connections.rpc),
-		mqChannel: connections.amqpChannel,
+		config:         cfg,
+		logger:         logger,
+		models:         data.GetModels(connections.db, cfg.db.database),
+		rpc:            rpc.GetClients(connections.rpc),
+		mqChannel:      connections.amqpChannel,
+		messageFunc:    queue.SendMessage,
+		backgroundFunc: helpers.RunInBackground,
 	}
 
 	// register service configs
 	app.registerServiceConfigs()
 
 	return app, connections
+}
+
+func cleanup(connections *appConnections) {
+	connections.amqp.Close()
+	connections.db.Disconnect(context.Background())
+	connections.rpc.Close()
 }
 
 func setupDocs() {
