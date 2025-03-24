@@ -21,7 +21,7 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 	}
 
 	is := services.IdentityService{ServiceConfig: &serviceConfig}
-	identity, err := is.RegisterIdentity(input)
+	token, err := is.RegisterIdentity(input)
 	if err != nil {
 		switch {
 		case errors.Is(err.(*services.ValidationErr).Err, data.ErrValidationFailed):
@@ -34,7 +34,7 @@ func (app *application) registerIdentityHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"identity": identity}, nil)
+	helpers.WriteJSON(w, http.StatusCreated, helpers.Envelope{"token": token.Plaintext}, nil)
 }
 
 func (app *application) activateIdentityHandler(w http.ResponseWriter, r *http.Request) {

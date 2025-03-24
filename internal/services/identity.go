@@ -24,7 +24,7 @@ type ActivateIdentityInput struct {
 	TokenPlaintext string `json:"token"`
 }
 
-func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput) (*data.Identity, error) {
+func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput) (*data.Token, error) {
 	identity := &data.Identity{
 		UUID:      uuid.NewString(),
 		Name:      input.Name,
@@ -62,18 +62,7 @@ func (i *IdentityService) RegisterIdentity(input RegisterIdentityInput) (*data.I
 		return nil, err
 	}
 
-	// send welcome email
-	emailData := struct {
-		name            string
-		activationToken string
-	}{
-		name:            identity.Name,
-		activationToken: token.Plaintext,
-	}
-	// TODO: Convert this to async
-	err = i.Mailer.Send(identity.Email, "user_welcome.tmpl", emailData)
-
-	return identity, err
+	return token, nil
 }
 
 func (i *IdentityService) ActivateIdentity(input ActivateIdentityInput) (*data.Identity, error) {

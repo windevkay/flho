@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/windevkay/flho/internal/data"
-	"github.com/windevkay/flho/internal/mailer"
 )
 
 type ValidationErr struct {
@@ -21,14 +20,12 @@ type ServiceConfig struct {
 	Background RunInBackgroundFunc
 	Logger     *slog.Logger
 	Models     data.Models
-	Mailer     mailer.Mailer
 	Wg         *sync.WaitGroup
 }
 
-func (s *ServiceConfig) Register(models data.Models, wg *sync.WaitGroup, logger *slog.Logger, bg RunInBackgroundFunc, mailer mailer.Mailer) {
+func (s *ServiceConfig) Register(models data.Models, wg *sync.WaitGroup, logger *slog.Logger, bg RunInBackgroundFunc) {
 	s.Models = models
 	s.Wg = wg
 	s.Logger = logger
 	s.Background = bg
-	s.Mailer = mailer
 }

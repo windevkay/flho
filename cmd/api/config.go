@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/windevkay/flho/internal/data"
-	"github.com/windevkay/flho/internal/mailer"
 	"github.com/windevkay/flho/internal/services"
 	"github.com/windevkay/flho/internal/vcs"
 	"go.mongodb.org/mongo-driver/bson"
@@ -19,20 +18,19 @@ import (
 )
 
 type application struct {
-	config         appConfig
-	logger         *slog.Logger
-	mailer         mailer.Mailer
-	backgroundFunc services.RunInBackgroundFunc
-	models         data.Models
-	wg             sync.WaitGroup
+	config    appConfig
+	ctx       context.Context
+	cancelCtx context.CancelFunc
+	logger    *slog.Logger
+	bg        services.RunInBackgroundFunc
+	models    data.Models
+	wg        sync.WaitGroup
 }
 
 type appConfig struct {
-	port              int
-	env               string
-	mailerServiceAddr string
-	messageQueueAddr  string
-	db                struct {
+	port int
+	env  string
+	db   struct {
 		uri            string
 		database       string
 		maxPoolSize    uint64
@@ -45,13 +43,6 @@ type appConfig struct {
 		rps     float64
 		burst   int
 		enabled bool
-	}
-	smtp struct {
-		host     string
-		port     int
-		username string
-		password string
-		sender   string
 	}
 }
 
@@ -86,8 +77,6 @@ var (
 func loadAppConfig() {
 	cfg.port = getEnvAsInt("PORT", 4000)
 	cfg.env = getEnv("ENV", "development")
-	cfg.mailerServiceAddr = getEnv("MAILER_SERVER", "")
-	cfg.messageQueueAddr = getEnv("MESSAGE_QUEUE_SERVER", "")
 	cfg.db.uri = getEnv("DB_URI", "")
 	cfg.db.database = getEnv("DB_NAME", "")
 	cfg.db.maxPoolSize = getEnvAsUint64("DB_MAX_POOL_SIZE", 100)
@@ -96,11 +85,6 @@ func loadAppConfig() {
 	cfg.limiter.rps = getEnvAsFloat64("LIMITER_RPS", 2)
 	cfg.limiter.burst = getEnvAsInt("LIMITER_BURST", 4)
 	cfg.limiter.enabled = getEnvAsBool("LIMITER_ENABLED", true)
-	cfg.smtp.host = getEnv("SMTP_HOST", "")
-	cfg.smtp.port = getEnvAsInt("SMTP_PORT", 25)
-	cfg.smtp.username = getEnv("SMTP_USERNAME", "")
-	cfg.smtp.password = getEnv("SMTP_PASSWORD", "")
-	cfg.smtp.sender = getEnv("SMTP_SENDER", "FLHO <no-reply@flho.dev>")
 }
 
 // getEnv reads an environment variable or returns a default value if not set.
@@ -213,5 +197,5 @@ func publishMetrics(db *mongo.Client) {
 // for various services. It sets up the necessary dependencies such as models,
 // RPC clients, message queue channel, wait group, and logger for the service.
 func (app *application) registerServiceConfigs() {
-	serviceConfig.Register(app.models, &app.wg, app.logger, app.backgroundFunc, app.mailer)
+	serviceConfig.Register(app.models, &app.wg, app.logger, app.bg)
 }

@@ -5,17 +5,15 @@ import (
 	"os"
 
 	"github.com/windevkay/flho/internal/data"
-	"github.com/windevkay/flho/internal/mailer"
 	"github.com/windevkay/flhoutils/helpers"
 )
 
 func main() {
 	app, connections := createApp()
-	defer cleanup(connections)
+	defer connections.db.Disconnect(app.ctx)
 
 	publishMetrics(connections.db)
 
-	// start http server
 	err := app.serveHTTP()
 	if err != nil {
 		logger.Error(err.Error())
@@ -32,20 +30,18 @@ func createApp() (*application, *appConnections) {
 		os.Exit(1)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	app := &application{
-		config:         cfg,
-		logger:         logger,
-		mailer:         mailer.New(cfg.smtp.host, cfg.smtp.port, cfg.smtp.username, cfg.smtp.password, cfg.smtp.sender),
-		models:         data.GetModels(connections.db, cfg.db.database),
-		backgroundFunc: helpers.RunInBackground,
+		config:    cfg,
+		ctx:       ctx,
+		cancelCtx: cancel,
+		logger:    logger,
+		models:    data.GetModels(connections.db, cfg.db.database),
+		bg:        helpers.RunInBackground,
 	}
 
-	// register service configs
 	app.registerServiceConfigs()
 
 	return app, connections
-}
-
-func cleanup(connections *appConnections) {
-	connections.db.Disconnect(context.Background())
 }
