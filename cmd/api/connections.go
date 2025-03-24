@@ -15,7 +15,7 @@ func connectWithRetry(connect connectFunc, maxRetries int, initialBackoff time.D
 	var conn any
 	var err error
 
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		conn, err = connect()
 		if err == nil {
 			return conn, nil
