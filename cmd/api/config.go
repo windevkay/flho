@@ -194,8 +194,7 @@ func publishMetrics(db *mongo.Client) {
 }
 
 // registerServiceConfigs initializes and registers the configuration settings
-// for various services. It sets up the necessary dependencies such as models,
-// RPC clients, message queue channel, wait group, and logger for the service.
+// for various services.
 func (app *application) registerServiceConfigs() {
 	serviceConfig.Register(app.models, &app.wg, app.logger, app.bg)
 }
