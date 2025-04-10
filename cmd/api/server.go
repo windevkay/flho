@@ -47,6 +47,7 @@ func (app *application) serveHTTP() error {
 		app.logger.Info("...finishing background tasks", "addr", srv.Addr)
 
 		app.wg.Wait()
+		app.cancelCtx()
 		shutdownError <- nil
 	}()
 
