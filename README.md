@@ -8,7 +8,7 @@ FLHO (pronounced as _flow_) is a state machine and workflow engine that can brin
 
   _FLHO_ solves the above scenario(s) by providing a _runID_ once a workflow begins. Hence, only one topic is required (to share the runID) as opposed to creating and maintaining one topic per state. All interested services can then query for the state of the workflow on demand and when they deem it useful*.
 
-- ### SCHEDULED RETRIES FOR FLAKY 3RD PARTY APIs
+- ### SCHEDULED RETRIES FOR FLAKY DEPENDENCIES
   An application can have a number of mission critical functions which might also influence the SLA of the business. Things can get tricky when some of these functions have a 3rd party dependency (e.g. API). Most apps will have some level of retry mechanism built in when working with 3rd party APIs. But its not always enough. If an exponential backoff strategy and/or circuit breaker patten proves ineffective, there might be a need to simply place the retry on a much later schedule.
 
   _FLHO_ helps with this by allowing users to define retry variables when they create workflows. This includes a retry URL and duration after which to do a retry. When creating the workflow, you can specify an error state (e.g. ENDPOINT_FAILURE) and then within the error handling logic of your code, you can notify FLHO of this state, which would then make the other retry variables kick in.

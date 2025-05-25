@@ -4,39 +4,45 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
-// serveHTTP starts the HTTP server and handles graceful shutdown on receiving
-// termination signals (SIGINT, SIGTERM). It configures the server with timeouts
-// and an error logger, and waits for background tasks to complete before fully
-// shutting down. The function returns an error if the server fails to start or
-// if there are issues during the shutdown process.
+// serveHTTP starts and manages the lifecycle of the HTTP server, including graceful shutdown on termination signals.
 func (app *application) serveHTTP() error {
+	const ReadTimeout int = 5
+	const WriteTimeout int = 10
+	const ShutdownTimeout int = 30
+
+	// Create a logger adapter that satisfies the standard log.Logger interface
+	zerologAdapter := zerolog.New(os.Stderr).Level(zerolog.ErrorLevel)
+	stdLogger := log.New(zerologAdapter, "", 0)
+
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", app.config.port),
+		Addr:         fmt.Sprintf(":%d", app.config.HttpPort),
 		Handler:      app.routes(),
 		IdleTimeout:  time.Minute,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		ErrorLog:     slog.NewLogLogger(app.logger.Handler(), slog.LevelError),
+		ReadTimeout:  time.Duration(ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(WriteTimeout) * time.Second,
+		ErrorLog:     stdLogger,
 	}
 
 	shutdownError := make(chan error)
 
 	go func() {
 		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGABRT, syscall.SIGQUIT)
 		s := <-quit
-		app.logger.Info("intercepted signal", "signal", s.String())
+		app.logger.Info().Str("signal", s.String()).Msg("intercepted signal")
 
 		// begin timed server shutdown
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(app.ctx, time.Duration(ShutdownTimeout)*time.Second)
 		defer cancel()
 
 		err := srv.Shutdown(ctx)
@@ -44,17 +50,18 @@ func (app *application) serveHTTP() error {
 			shutdownError <- err
 		}
 
-		app.logger.Info("...finishing background tasks", "addr", srv.Addr)
+		app.logger.Info().Str("addr", srv.Addr).Msg("...finishing background tasks")
 
 		app.wg.Wait()
 		app.cancelCtx()
+
 		shutdownError <- nil
 	}()
 
-	app.logger.Info("starting server", "addr", srv.Addr, "env", app.config.env)
+	app.logger.Info().Str("addr", srv.Addr).Str("env", app.config.Env).Msg("starting server")
 
 	err := srv.ListenAndServe()
-	// check if error is not a result of calling Shutdown
+	// check if the error is not a result of calling Shutdown
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -64,7 +71,7 @@ func (app *application) serveHTTP() error {
 		return err
 	}
 
-	app.logger.Info("server stopped", "addr", srv.Addr)
+	app.logger.Info().Str("addr", srv.Addr).Msg("server stopped")
 
 	return nil
 }
